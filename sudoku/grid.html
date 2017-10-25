@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="ISO-8859-1">
+
+    <script type="text/javascript">
+        (function () {
+            'use strict';
+            const gridSize = 9;        // magic number still used in styling - eliminating it there is not easy and probably overkill
+            var gridElement;           // the top level div element the grid lives in
+
+            function Cell(i, j) {
+                this._value = null;
+
+                this._rowBlocked= 0;
+                this._colBlocked= 0;
+                this._squareBlocked= 0;
+
+                this._row = i;
+                this._col = j;
+
+                this._square= Math.floor(i / 3) * 3 + Math.floor(j / 3);
+
+                this._shadowValue= null;
+            }
+
+            Cell.prototype.index= function() {
+                return this._row * gridSize + this._col;
+            };
+
+            Cell.prototype.reveal= function() {
+                this.value= this._shadowValue;
+            };
+
+            Cell.prototype.isEmpty= function() {
+                return this._value == null;
+            };
+
+            Cell.prototype.allowedMoves= function() {
+                var result= [];
+                if (this._value == null) {
+                    for(var i= 0; i < gridSize; i++) {
+                        if (this.isAllowedValue(i)) {
+                            result.push(i);
+                        }
+                    }
+                }
+                return result;
+            }
+
+            Cell.prototype.isAllowedValue = function (val) {
+                if (val == this._value || val == null) {
+                    return true;
+                } else {
+                    var test= 1 << val;
+                    return (this._rowBlocked & test) == 0 &&
+                        (this._colBlocked & test) == 0 &&
+                        (this._squareBlocked & test) == 0;
+                }
+            }
+
+            function setFlag(flags, value) {
+                return flags | 1 << value;
+            }
+
+            function clearFlag(flags, value) {
+                return flags & ~(1 << value);
+            }
+
+            Cell.prototype.allow = function (otherCell, val) {
+                if (val != null) {
+                    if (otherCell._row == this._row) {
+                        this._rowBlocked= clearFlag(this._rowBlocked, val);
+                    }
+                    if (otherCell._col == this._col) {
+                        this._colBlocked= clearFlag(this._colBlocked, val);
+                    }
+
+                    if (otherCell._square == this._square) {
+                        this._squareBlocked= clearFlag(this._squareBlocked, val);
+                    }
+                }
+            }
+
+            Cell.prototype.forbid = function (otherCell, val) {
+                if (val != null) {
+                    if (otherCell._row == this._row) {
+                        this._rowBlocked= setFlag(this._rowBlocked, val);
+                    }
+                    if (otherCell._col == this._col) {
+                        this._colBlocked= setFlag(this._colBlocked, val);
+                    }
+
+                    if (otherCell._square == this._square) {
+                        this._squareBlocked= setFlag(this._squareBlocked, val);
+                    }
+                }
+            }
+
+
+            Cell.prototype.isAllowedMove = function(value) {
+                var allowed= this.isAllowedValue(value);
+
+                //TODO what state do buddies have to be in for move to be allowed?
+                // rule: if a true buddy (i.e. not this) only has value as allowedValue then putting value here is not allowed
+
+                return allowed;
+            }
+
+            Object.defineProperty(Cell.prototype, 'value', {
+                get: function () {
+                    return this._value;
+                },
+
+                set: function (value) {
+                    var moi= this;
+
+                    if (!this.isAllowedMove(value)) {
+                        throw "not allowed";
+                    }
+
+                    model.grid.forEach(function(cell) {
+                        cell.allow(moi, moi._value);
+                        cell.forbid(moi, value);
+                    });
+
+                    this._value= value;
+                }
+            });
+
+            function Model() {
+                this.grid= [];
+
+                for(var i= 0; i < gridSize; i++) {
+                    for(var j= 0; j < gridSize; j++) {
+                        this.grid.push(new Cell(i,j));
+                    }
+                }
+            }
+
+            Model.prototype.getCell= function() {       // callable with index or row, col
+                if (arguments.length == 1) {
+                    return this.grid[arguments[0]];
+                }
+                if (arguments.length == 2) {
+                    return this.grid[arguments[0] * gridSize + arguments[1]];
+                }
+            }
+
+            Model.prototype.solve= function() {
+                //pick an empty cell (_value == null)
+                var cell= this.grid.reduce((accumulator, element) => {
+                    if (accumulator.isEmpty()) {
+                        return accumulator;
+                    } else {
+                        return element;
+                    }
+                });
+
+                if (!cell.isEmpty()) {
+                    return;
+                }
+
+                var allowedMoves= cell.allowedMoves();
+                let i= 0;
+
+                for(;;) {
+                    if (i >= allowedMoves.length) {
+                        throw "out of moves";
+                    }
+
+                    let move= new Move(cell.index(), cell.value, allowedMoves[i]);
+                    move.apply();
+
+                    try {
+                        this.solve();
+                        //TODO you want to change the move to a "shadow move" really
+                        return;
+                    } catch (e) {
+                        move.undo();
+                        i+= 1;
+                    }
+
+                }
+
+                // for each allowed move: make move, solve. if solve throws, pick next move.
+                // if solve doesn't, assign "shadow" value to cell.
+            }
+
+            Model.prototype.revealAll= function(){
+                this.grid.forEach((cell) => {cell.reveal()});
+            }
+
+
+            var focus = 0;
+
+            var undoRedo = [];
+            var undoRedoIndex = 0;
+
+            function Move(cellIndex, oldValue, value) {
+                this.cellIndex= cellIndex;
+                this.oldValue = oldValue;
+                this.value = value;
+            }
+
+            Move.prototype.apply = function () {
+                model.getCell(this.cellIndex).value = this.value;
+            }
+
+            Move.prototype.undo= function() {
+                model.getCell(this.cellIndex).value = this.oldValue;
+            }
+
+            function makeGridCell(row, col) {
+                var cellOuter = document.createElement('div');
+                cellOuter.classList.add('outer');
+
+                var cellInner = document.createElement('div');
+                cellInner.classList.add('inner');
+
+                var cellInnerText = document.createElement('div');
+                cellInnerText.classList.add('text');
+                cellInner.appendChild(cellInnerText);
+
+                var cellInnerIndicators = document.createElement('div');
+                cellInnerIndicators.classList.add('indicator');
+                cellInner.appendChild(cellInnerIndicators);
+
+                for (var i = 0; i < gridSize; i++) {
+                    var indicator = document.createElement('div');
+                    cellInnerIndicators.appendChild(indicator);
+                }
+
+                cellOuter.setAttribute('data-row', row);
+                cellOuter.setAttribute('data-col', col);
+
+                cellOuter.appendChild(cellInner);
+
+                return cellOuter;
+            }
+
+            function redraw() {
+                console.log("grid children", gridElement.children);
+                console.log("focus", focus);
+
+                for (var i = 0; i < gridElement.children.length; i++) {
+                    var cell = gridElement.children[i];
+                    if (focus == i) {
+                        cell.classList.add('focus');
+                    } else {
+                        cell.classList.remove('focus');
+                    }
+
+                    if (model.getCell(i).value != null) {
+                        cell.children[0].children[0].textContent = model.getCell(i).value + 1;
+                        //note: setting node.textContent replaces all children - take into account when designing indicators
+                        for (let j = 0; j < 9; j++) {
+                            cell.children[0].children[1].children[j].style.backgroundColor = 'transparent';
+                        }
+                    } else {
+                        cell.children[0].children[0].textContent = "";
+                        for (let j = 0; j < 9; j++) {
+                            if (model.getCell(i).isAllowedValue(j)) {
+                                cell.children[0].children[1].children[j].style.removeProperty('background-color');
+                            } else {
+                                cell.children[0].children[1].children[j].style.backgroundColor = 'red';
+                            }
+                        }
+                    }
+
+                    // indicators: cell.children[0].children[1] -> <div class='indicator'>
+                }
+
+            }
+
+            var model= new Model();
+
+            const navigationKeyHandler = {
+                ArrowRight: function () {
+                    var previousCol= focus % gridSize;
+                    focus= (focus - previousCol) + (previousCol + 1) % gridSize;
+                },
+                ArrowLeft: function () {
+                    var previousCol= focus % gridSize;
+                    focus= (focus - previousCol) + (previousCol + gridSize - 1) % gridSize;
+                },
+                ArrowDown: function () {
+                    focus= (focus + gridSize) % (gridSize * gridSize);
+                },
+                ArrowUp: function () {
+                    focus= (focus - gridSize + gridSize * gridSize) % (gridSize * gridSize);
+                }
+            }
+
+            document.addEventListener("DOMContentLoaded", function (event) {
+                console.log("DOM fully loaded and parsed", event);
+
+                gridElement = document.getElementById("gridContainer");
+
+                for (var row = 0; row < gridSize; row++) {
+                    for (var col = 0; col < gridSize; col++) {
+                        gridElement.appendChild(makeGridCell(row, col));
+                    }
+                }
+
+                document.onkeydown = function (event) {
+                    console.log("keyDown", event);
+                    var handled = false;
+
+                    function setValue(value) {
+                        undoRedo.push(new Move(focus, model.getCell(focus).value, value));
+                        undoRedoIndex += 1;
+                        try {
+                            model.getCell(focus).value = value;
+                        } catch (e) {
+                            console.error("exception setting value", e);
+                            undoRedoIndex-= 1;
+                            undoRedo.pop().undo();
+                        }
+                    }
+
+                    if (typeof navigationKeyHandler[event.code] == 'function') {
+                        navigationKeyHandler[event.code]();
+                        handled = true;
+                    } else if (event.key >= '1' && event.key <= '9') {
+                        setValue(parseInt(event.key) - 1);
+                        handled = true;
+                    } else if (event.key == 'Delete') {
+                        setValue(null);
+                        handled = true;
+                    } else if (event.key== 'z' && event.ctrlKey) {
+                        if (undoRedoIndex > 0) {
+                            undoRedoIndex -= 1;
+                            undoRedo[undoRedoIndex].undo();
+                            handled = true;
+                        }
+                    } else if (event.key == 'y' && event.ctrlKey) {
+                        if (undoRedoIndex < undoRedo.length) {
+                            undoRedo[undoRedoIndex].apply();
+                            undoRedoIndex+= 1;
+                            handled = true;
+                        }
+                    } else if (event.key == 'S') {
+                        model.solve();
+                        model.revealAll();
+                        handled= true;
+                    } else if (event.key == 's') {
+                        model.solve();
+                        model.getCell(focus).reveal();
+                        handled= true;
+                    }
+
+                    if (handled) {
+                        redraw();
+                    }
+                }
+
+                gridElement.addEventListener('click', function (event) {
+                    console.log("click", event);
+                    var element = event.target;
+
+                    while (!element.dataset.hasOwnProperty('row') && element.parentNode != null) {
+                        element = element.parentNode;
+                    }
+
+                    if (element.dataset.hasOwnProperty('row')) {
+
+                        focus= parseInt(element.dataset.row) * gridSize + parseInt(element.dataset.col);
+
+                        redraw();
+                    }
+                }, false);
+
+                redraw();
+            });
+        }());
+
+        // IE11 and Edge only support a previous spec of Grid Layout. There is no auto placement in that spec (you have to specify grid cells for each div)
+        //  so if I wanted to enable this for IE I would have to set grid properties on the cell divs as I create them.
+    </script>
+
+
+    <style>
+        :root {
+            --cellSize: 50px;
+        }
+
+        #gridContainer {
+            display: grid;
+            grid-template-rows: repeat(9, var(--cellSize, 30px));
+            grid-template-columns: repeat(9, var(--cellSize, 30px));
+        }
+
+        #gridContainer div.outer[data-col="0"] {
+            border-left: 1px solid black;
+        }
+
+        #gridContainer div.outer[data-col="2"] {
+            border-right: 1px solid black;
+        }
+
+        #gridContainer div.outer[data-col="5"] {
+            border-right: 1px solid black;
+        }
+
+        #gridContainer div.outer[data-col="8"] {
+            border-right: 1px solid black;
+        }
+
+        #gridContainer div.outer[data-row="0"] {
+            border-top: 1px solid black;
+        }
+
+        #gridContainer div.outer[data-row="2"] {
+            border-bottom: 1px solid black;
+        }
+
+        #gridContainer div.outer[data-row="5"] {
+            border-bottom: 1px solid black;
+        }
+
+        #gridContainer div.outer[data-row="8"] {
+            border-bottom: 1px solid black;
+        }
+
+        #gridContainer div.outer {
+            border-left: 1px solid silver;
+            border-bottom: 1px solid silver;
+            padding: 1px;
+        }
+
+        #gridContainer div.outer div.inner {
+            width: calc(100% - 2px);
+            height: calc(100% - 2px);
+        }
+
+        #gridContainer div.outer.focus div.inner {
+            border: 1px solid red;
+        }
+
+        #gridContainer div.inner {
+            position: relative;
+            display: flex;
+            flex-flow: column nowrap;
+            justify-content: center;
+        }
+
+        #gridContainer div.inner > div.text {
+            text-align: center;
+        }
+
+        #gridContainer div.inner > div.indicator {
+            display: grid;
+            grid-template-columns: repeat(3, 5px);
+            grid-template-rows: repeat(3, 5px);
+            position: absolute;
+            top: 2px;
+            left: 2px;
+        }
+
+        #gridContainer div.inner > div.indicator > div {
+            background-color: bisque;
+        }
+
+    </style>
+
+    <title>Grid</title>
+</head>
+<body>
+<div id="gridContainer">
+</div>
+</body>
+</html>
