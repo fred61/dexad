@@ -125,11 +125,13 @@
                     });
 
                     this._value= value;
+                    this._shadowValue= value;
                 }
             });
 
             function Model() {
                 this.grid= [];
+                this.solved= false;
 
                 for(var i= 0; i < gridSize; i++) {
                     for(var j= 0; j < gridSize; j++) {
@@ -148,6 +150,10 @@
             }
 
             Model.prototype.solve= function() {
+                if (this.solved) {
+                    return;
+                }
+
                 //pick an empty cell (_value == null)
                 var cell= this.grid.reduce((accumulator, element) => {
                     if (accumulator.isEmpty()) {
@@ -175,6 +181,9 @@
                     try {
                         this.solve();
                         //TODO you want to change the move to a "shadow move" really
+                        move.undo();
+                        cell._shadowValue= allowedMoves[i];
+                        this.solved= true;
                         return;
                     } catch (e) {
                         move.undo();
@@ -251,19 +260,29 @@
                         cell.classList.remove('focus');
                     }
 
+                    let textDiv= cell.children[0].children[0];
+                    let indicatorDiv= cell.children[0].children[1];
+
                     if (model.getCell(i).value != null) {
-                        cell.children[0].children[0].textContent = model.getCell(i).value + 1;
+                        textDiv.style.color= 'black';
+                        textDiv.textContent = model.getCell(i).value + 1;
                         //note: setting node.textContent replaces all children - take into account when designing indicators
                         for (let j = 0; j < 9; j++) {
-                            cell.children[0].children[1].children[j].style.backgroundColor = 'transparent';
+                            indicatorDiv.children[j].style.backgroundColor = 'transparent';
                         }
                     } else {
-                        cell.children[0].children[0].textContent = "";
+                        if (model.getCell(i)._shadowValue == null) {
+                            textDiv.textContent = "";
+                        } else {
+                            textDiv.style.color= 'silver';
+                            textDiv.textContent= model.getCell(i)._shadowValue + 1;
+                        }
+
                         for (let j = 0; j < 9; j++) {
                             if (model.getCell(i).isAllowedValue(j)) {
-                                cell.children[0].children[1].children[j].style.removeProperty('background-color');
+                                indicatorDiv.children[j].style.removeProperty('background-color');
                             } else {
-                                cell.children[0].children[1].children[j].style.backgroundColor = 'red';
+                                indicatorDiv.children[j].style.backgroundColor = 'red';
                             }
                         }
                     }
@@ -347,6 +366,9 @@
                     } else if (event.key == 's') {
                         model.solve();
                         model.getCell(focus).reveal();
+                        handled= true;
+                    } else if (event.key == 'c') {
+                        model= new Model();
                         handled= true;
                     }
 
