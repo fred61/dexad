@@ -132,6 +132,7 @@
             function Model() {
                 this.grid= [];
                 this.solved= false;
+                this.strategy= LowFruitStrategy;
 
                 for(var i= 0; i < gridSize; i++) {
                     for(var j= 0; j < gridSize; j++) {
@@ -154,43 +155,10 @@
                     return;
                 }
 
-                //pick an empty cell (_value == null)
-                var cell= this.grid.reduce((accumulator, element) => {
-                    if (accumulator.isEmpty()) {
-                        return accumulator;
-                    } else {
-                        return element;
-                    }
-                });
-
-                if (!cell.isEmpty()) {
-                    return;
-                }
-
-                var allowedMoves= cell.allowedMoves();
-                let i= 0;
-
-                for(;;) {
-                    if (i >= allowedMoves.length) {
-                        throw "out of moves";
-                    }
-
-                    let move= new Move(cell.index(), cell.value, allowedMoves[i]);
-                    move.apply();
-
-                    try {
-                        this.solve();
-                        //TODO you want to change the move to a "shadow move" really
-                        move.undo();
-                        cell._shadowValue= allowedMoves[i];
-                        this.solved= true;
-                        return;
-                    } catch (e) {
-                        move.undo();
-                        i+= 1;
-                    }
-
-                }
+                let elapsed= performance.now();
+                this.strategy.solve(this);
+                elapsed= performance.now() - elapsed;
+                console.log("solved in " + elapsed);
 
                 // for each allowed move: make move, solve. if solve throws, pick next move.
                 // if solve doesn't, assign "shadow" value to cell.
@@ -200,7 +168,94 @@
                 this.grid.forEach((cell) => {cell.reveal()});
             }
 
+            Model.prototype.removeSolution= function() {
+                if (this.solved) {
+                    this.solved = false;
+                    this.grid.forEach((cell) => {
+                        cell._shadowValue = cell._value
+                    });
+                }
+            }
 
+            const BruteForceStrategy = {
+                solve: function(model) {
+                    let cell= model.grid.reduce((accumulator, element) => {
+                        if (accumulator.isEmpty()) {
+                            return accumulator;
+                        } else {
+                            return element;
+                        }
+                    });
+
+                    if (!cell.isEmpty()) {
+                        return;
+                    }
+
+                    var allowedMoves= cell.allowedMoves();
+                    for(let i= 0; i < allowedMoves.length; i++) {
+                        let move= new Move(cell.index(), cell.value, allowedMoves[i]);
+                        move.apply();
+
+                        try {
+                            this.solve(model);
+                            move.undo();
+                            cell._shadowValue= allowedMoves[i];
+                            model.solved= true;
+                            return;
+                        } catch (e) {
+                            move.undo();
+                        }
+
+                    }
+                    throw "out of moves";
+                }
+            }
+
+
+            const LowFruitStrategy = {
+                solve: function(model) {
+                    let cell= model.grid[0];
+                    let allowedMoves= [0,1,2,3,4,5,6,7,8];
+
+                    for(let i= 0; i < model.grid.length; i++) {
+                        let c= model.grid[i];
+                        if (c.isEmpty()) {
+                            let m= c.allowedMoves();
+                            if (m.length < allowedMoves.length) {
+                                cell= c;
+                                allowedMoves= m;
+                            }
+                            if (allowedMoves.length == 1) {
+                                break;
+                            }
+                        }
+                    }
+
+                    if (!cell.isEmpty()) {
+                        return;
+                    }
+
+
+
+                    for(let i= 0; i < allowedMoves.length; i++) {
+                        let move= new Move(cell.index(), cell.value, allowedMoves[i]);
+                        move.apply();
+
+                        try {
+                            this.solve(model);
+                            move.undo();
+                            cell._shadowValue= allowedMoves[i];
+                            model.solved= true;
+                            return;
+                        } catch (e) {
+                            move.undo();
+                        }
+
+                    }
+                    throw "out of moves";
+
+                }
+            }
             var focus = 0;
 
             var undoRedo = [];
@@ -294,24 +349,7 @@
 
             var model= new Model();
 
-            const navigationKeyHandler = {
-                ArrowRight: function () {
-                    var previousCol= focus % gridSize;
-                    focus= (focus - previousCol) + (previousCol + 1) % gridSize;
-                },
-                ArrowLeft: function () {
-                    var previousCol= focus % gridSize;
-                    focus= (focus - previousCol) + (previousCol + gridSize - 1) % gridSize;
-                },
-                ArrowDown: function () {
-                    focus= (focus + gridSize) % (gridSize * gridSize);
-                },
-                ArrowUp: function () {
-                    focus= (focus - gridSize + gridSize * gridSize) % (gridSize * gridSize);
-                }
-            }
-
-            document.addEventListener("DOMContentLoaded", function (event) {
+            document.addEventListener("DOMContentLoaded", (event) => {
                 console.log("DOM fully loaded and parsed", event);
 
                 gridElement = document.getElementById("gridContainer");
@@ -322,54 +360,74 @@
                     }
                 }
 
-                document.onkeydown = function (event) {
+                document.onkeydown = keyDownHandler;
+
+                function keyDownHandler(event) {
                     console.log("keyDown", event);
-                    var handled = false;
+                    let handled = true;
+
+                    const navigationKeyHandler = {
+                        ArrowRight: () => {
+                            var previousCol = focus % gridSize;
+                            focus = (focus - previousCol) + (previousCol + 1) % gridSize;
+                        },
+                        ArrowLeft: () => {
+                            var previousCol = focus % gridSize;
+                            focus = (focus - previousCol) + (previousCol + gridSize - 1) % gridSize;
+                        },
+                        ArrowDown: () => {
+                            focus = (focus + gridSize) % (gridSize * gridSize);
+                        },
+                        ArrowUp: () => {
+                            focus = (focus - gridSize + gridSize * gridSize) % (gridSize * gridSize);
+                        }
+                    }
 
                     function setValue(value) {
                         undoRedo.push(new Move(focus, model.getCell(focus).value, value));
                         undoRedoIndex += 1;
                         try {
+                            if (model.getCell(focus)._shadowValue !== value) {
+                                model.removeSolution();
+                            }
                             model.getCell(focus).value = value;
                         } catch (e) {
                             console.error("exception setting value", e);
-                            undoRedoIndex-= 1;
+                            undoRedoIndex -= 1;
                             undoRedo.pop().undo();
                         }
                     }
 
                     if (typeof navigationKeyHandler[event.code] == 'function') {
                         navigationKeyHandler[event.code]();
-                        handled = true;
                     } else if (event.key >= '1' && event.key <= '9') {
                         setValue(parseInt(event.key) - 1);
-                        handled = true;
                     } else if (event.key == 'Delete') {
                         setValue(null);
-                        handled = true;
-                    } else if (event.key== 'z' && event.ctrlKey) {
-                        if (undoRedoIndex > 0) {
+                    } else if (event.key == 'z' && event.ctrlKey) {
+                        if (undoRedoIndex <= 0) {
+                            handled = false;
+                        } else {
                             undoRedoIndex -= 1;
                             undoRedo[undoRedoIndex].undo();
-                            handled = true;
                         }
                     } else if (event.key == 'y' && event.ctrlKey) {
-                        if (undoRedoIndex < undoRedo.length) {
+                        if (undoRedoIndex >= undoRedo.length) {
+                            handled = false;
+                        } else {
                             undoRedo[undoRedoIndex].apply();
-                            undoRedoIndex+= 1;
-                            handled = true;
+                            undoRedoIndex += 1;
                         }
                     } else if (event.key == 'S') {
                         model.solve();
                         model.revealAll();
-                        handled= true;
                     } else if (event.key == 's') {
                         model.solve();
                         model.getCell(focus).reveal();
-                        handled= true;
                     } else if (event.key == 'c') {
-                        model= new Model();
-                        handled= true;
+                        model = new Model();
+                    } else {
+                        handled = false;
                     }
 
                     if (handled) {
