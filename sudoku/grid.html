@@ -159,9 +159,6 @@
                 this.strategy.solve(this);
                 elapsed= performance.now() - elapsed;
                 console.log("solved in " + elapsed);
-
-                // for each allowed move: make move, solve. if solve throws, pick next move.
-                // if solve doesn't, assign "shadow" value to cell.
             }
 
             Model.prototype.revealAll= function(){
@@ -176,16 +173,10 @@
                     });
                 }
             }
-
-            const BruteForceStrategy = {
+            
+            const AbstractStrategy = {
                 solve: function(model) {
-                    let cell= model.grid.reduce((accumulator, element) => {
-                        if (accumulator.isEmpty()) {
-                            return accumulator;
-                        } else {
-                            return element;
-                        }
-                    });
+                    let cell= this.findCell(model);
 
                     if (!cell.isEmpty()) {
                         return;
@@ -211,51 +202,40 @@
                 }
             }
 
+            const BruteForceStrategy = AbstractStrategy;
+            BruteForceStrategy.findCell= function(model) {
+                return model.grid.reduce((accumulator, element) => {
+                        if (accumulator.isEmpty()) {
+                            return accumulator;
+                        } else {
+                            return element;
+                        }
+                    });
+            };
 
-            const LowFruitStrategy = {
-                solve: function(model) {
-                    let cell= model.grid[0];
-                    let allowedMoves= [0,1,2,3,4,5,6,7,8];
 
-                    for(let i= 0; i < model.grid.length; i++) {
-                        let c= model.grid[i];
-                        if (c.isEmpty()) {
-                            let m= c.allowedMoves();
-                            if (m.length < allowedMoves.length) {
-                                cell= c;
-                                allowedMoves= m;
-                            }
-                            if (allowedMoves.length == 1) {
-                                break;
-                            }
+            const LowFruitStrategy = AbstractStrategy;
+            LowFruitStrategy.findCell= function(model) {
+                let cell= model.grid[0];
+                let allowedMoves= [0,1,2,3,4,5,6,7,8];
+
+                for(let i= 0; i < model.grid.length; i++) {
+                    let c= model.grid[i];
+                    if (c.isEmpty()) {
+                        let m= c.allowedMoves();
+                        if (m.length < allowedMoves.length) {
+                            cell= c;
+                            allowedMoves= m;
+                        }
+                        if (allowedMoves.length == 1) {
+                            break;
                         }
                     }
-
-                    if (!cell.isEmpty()) {
-                        return;
-                    }
-
-
-
-                    for(let i= 0; i < allowedMoves.length; i++) {
-                        let move= new Move(cell.index(), cell.value, allowedMoves[i]);
-                        move.apply();
-
-                        try {
-                            this.solve(model);
-                            move.undo();
-                            cell._shadowValue= allowedMoves[i];
-                            model.solved= true;
-                            return;
-                        } catch (e) {
-                            move.undo();
-                        }
-
-                    }
-                    throw "out of moves";
-
                 }
+                
+                return cell;
             }
+            
             var focus = 0;
 
             var undoRedo = [];
@@ -307,6 +287,7 @@
                 console.log("grid children", gridElement.children);
                 console.log("focus", focus);
 
+                // draw grid
                 for (var i = 0; i < gridElement.children.length; i++) {
                     var cell = gridElement.children[i];
                     if (focus == i) {
@@ -345,12 +326,23 @@
                     // indicators: cell.children[0].children[1] -> <div class='indicator'>
                 }
 
+                // set query string in location - that's a spectacularly bad idea, causes reload
+                let search= "?grid=" + model.grid.reduce((accumulator, element) => {
+                    if (element.value == null) {
+                        return accumulator + '0';
+                    } else {
+                        return accumulator + (element.value + 1).toString();
+                    }
+                }, '');
+                
+                let linkElement= document.getElementById('link');
+                linkElement.href= search;
             }
 
             var model= new Model();
 
             document.addEventListener("DOMContentLoaded", (event) => {
-                console.log("DOM fully loaded and parsed", event);
+                console.log("DOM fully loaded and parsed", typeof window.location.search);
 
                 gridElement = document.getElementById("gridContainer");
 
@@ -359,6 +351,19 @@
                         gridElement.appendChild(makeGridCell(row, col));
                     }
                 }
+                
+                let m= /grid=([0-9]+)/.exec(window.location.search);
+                if (m != null) {
+                    console.log("grid values", m[1]);
+                    
+                    for(let i= 0; i < m[1].length; i++) {
+                        if (m[1][i] > '0') {
+                            model.getCell(i).value= parseInt(m[1][i]) - 1;
+                            //TODO handle smart-ass case
+                        }
+                    }
+                }
+
 
                 document.onkeydown = keyDownHandler;
 
@@ -438,12 +443,13 @@
                 gridElement.addEventListener('click', function (event) {
                     console.log("click", event);
                     var element = event.target;
+                    
 
-                    while (!element.dataset.hasOwnProperty('row') && element.parentNode != null) {
+                    while (typeof element.dataset != 'undefined' && !element.dataset.hasOwnProperty('row') && element.parentNode != null) {
                         element = element.parentNode;
                     }
 
-                    if (element.dataset.hasOwnProperty('row')) {
+                    if (typeof element.dataset != 'undefined' && element.dataset.hasOwnProperty('row')) {
 
                         focus= parseInt(element.dataset.row) * gridSize + parseInt(element.dataset.col);
 
@@ -547,7 +553,10 @@
     <title>Grid</title>
 </head>
 <body>
-<div id="gridContainer">
-</div>
+    <div id="gridContainer">
+    </div>
+    <div>
+        <a id="link">Permanent Link to this Sudoku</a>
+    </div>
 </body>
 </html>
