@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+        <link rel="stylesheet" type="text/css" href="treeView.css">
+        <link rel="stylesheet" type="text/css" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+        
+        <script type="text/javascript" src="https://code.jquery.com/jquery-1.12.4.min.js"></script>
+
+        <script type="text/javascript" src="treeView.js"></script>
+        
+        <script type="text/javascript">
+            (function() {
+                function documentLoadHandler() {
+                    console.log("doc loaded");
+                    
+                    const data1 = [
+                        {name:"root 1",
+                        children: [
+                            {name:"child 11", children: []},
+                            {name:"child 12", children: []}
+                        ]},
+                        {name:"root 2",
+                        children: [
+                            {name:"child 21", children: [{name: "grandchild 211", children: []}]},
+                            {name:"child 22", children: []}
+                        ]}
+                    ];
+
+                    const data2 = [
+                        {name:"root 1b",
+                        children: [
+                            {name:"child 11", children: []},
+                            {name:"child 12", children: []}
+                        ]},
+                        {name:"root 2",
+                        children: [
+                            {name:"child 21", children: [{name: "grandchild 211", children: []}]},
+                            {name:"child 22", children: []}
+                        ]}
+                    ];
+                    
+                    $('#tv1').attr('data-data-source', 'data:application/json;base64,' + btoa(JSON.stringify(data1)));
+                    $('#tv2').attr('data-data-source', 'data:application/json;base64,' + btoa(JSON.stringify(data2)));
+                    
+                    $("div.treeView").treeView({
+                    });
+                }
+                $(documentLoadHandler);
+            }());
+        </script>
+        
+    </head>
+    
+    <body>
+        <div id="tv1" class="treeView"></div>
+        <div id="tv2" class="treeView"></div>
+    </body>
+</html>    

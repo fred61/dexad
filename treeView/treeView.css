@@ -1,0 +1,49 @@
+@charset "UTF-8";
+
+.glyphicon-menu-right:before {
+  content: "\e258";
+}
+.glyphicon-menu-down:before {
+  content: "\e259";
+}
+
+.treeContainer.loading:before{
+	content: "loading..."
+}
+
+.treeContainer {
+	overflow-x: hide;
+	overflow-y: auto;
+}
+
+.treeContainer>ul>li, .treeContainer>ul>li *  {
+	margin-left: 0px;
+	margin-right: 0px;
+}
+
+.treeContainer li.collapsed ul {
+	display: none;
+}
+
+.treeContainer li div.itemToggle:before {
+	content: "\e259";	
+}
+
+.treeContainer li.collapsed div.itemToggle:before {
+	content: "\e258";	
+}
+
+.treeContainer li {
+  list-style : none;
+  text-align: left;
+}
+
+.treeContainer li div.itemBanner {
+	display: flex;
+    flex-flow: row nowrap;	
+    justify-content: flex-start;
+}
+
+.treeContainer li div.itemBanner>* {
+	flex: 0 1 auto;
+}
