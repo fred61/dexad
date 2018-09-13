@@ -1,0 +1,35 @@
+How to create a factory method in JavaScript
+
+In Java you can do this:
+  class Class {
+    public static Class factoryMethod();
+  }
+  
+Usage is 
+  Class instance= Class.factoryMethod();
+  
+  
+is there an equivalent in JavaScript? It seems to me there should be, there are several functions in Object which are called in the same way as the Usage above, e.g. Object.getOwnPropertyNames
+
+why do I have to call getOwnPropertyNames this way though? given an object o, why can't I do o.getOwnPropertyNames? what happens if I try?
+
+"o.getOwnPropertyNames is not a function". It doesn't make a difference whether o is an anonymous object or an instance created by a constructor function.
+
+The difference is that getOwnPropertyNames is a property of Object and not of Object.prototype.
+
+So for the above:
+    
+    function Class() {
+    }
+    
+    Class.factoryMethod= function() {}
+    
+when an object is created, its prototype becomes the prototype of the function that created it.
+the prototype of the constructor function is an object. Under normal circumstances the protoype of this object is what?
+
+How do you access the prototype of an object?
+o.[[Prototype]] is the _notation_ for the prototype of o. You don't use it in code. The reliable way to access o.[[Prototype]] is Object.getPrototypeOf(o).
+o.__proto__ is non-standard but de-facto implemented by "many browsers", in other words, that's a good way to ensure that your code doesn't work in Hode.js or some mobile browser you've never heard of.
+
+There is also Object.prototype which is a property representing the prototype of the Object function. 
+Every function has a prototype property, so there is nothing special about Object.property.
