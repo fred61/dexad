@@ -1,0 +1,7 @@
+
+<IfModule rewrite_module>
+  RewriteEngine On
+  RewriteBase /api
+  RewriteCond %{REQUEST_FILENAME} !=service.php
+  RewriteRule (.*)$ service.php?restResourcePath=$1 [QSA,NC,L]
+</IfModule>
