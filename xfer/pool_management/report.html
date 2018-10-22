@@ -1,0 +1,1464 @@
+<style type="text/css" id="poolManagementStyles">
+	div.template {
+		display: none;
+	}
+	
+	#poolManagement {
+		max-width: 90vw;
+		display:flex;
+		flex-flow: row nowrap;
+		align-items: start;
+		overflow-y: hidden;
+		position: relative;
+		
+		--title-panel-height: 3rem;
+		--filter-panel-height: 6rem;
+		--button-panel-height: 4rem;
+		--server-icon-width: 1.33em;
+		--server-icon-margin: 0.5em;
+		--pool-server-element-width: calc(var(--max-pool-server-name-width, 5em) + var(--server-icon-width, 1.33em) + var(--server-icon-margin, 0.5em));
+
+		--color-busy: #00a000;
+		--color-down: #ff4125;
+		--color-avl: #c0c0c0;
+		--color-prep: #3cff3c;
+	}
+	
+	/* 
+		do not use ID for this rule, otherwise it takes precedence over all rules
+		that do not have an ID
+	*/
+	div.poolManagement * {
+		margin: 0;
+	}
+	
+	#poolManagement .object-busy {
+		opacity: 0.5;
+	}
+
+	
+	.listContainer {
+		height: 100%;
+		max-height: 100%;
+		position: relative;
+	}
+	
+	.listContainer .titlePanel {
+		height: var(--title-panel-height);
+		font-size: 150%;
+		font-weight: bold;
+		display: flex;
+		justify-content: center;
+		align-items: center;
+	}
+	
+	.listContainer .filterPanel {
+		height: var(--filter-panel-height);
+		display: flex;
+		flex-flow: column nowrap;
+		justify-content: space-between;
+		padding-bottom: 0.5em;
+	}
+	
+	.listContainer .buttonPanel {
+		height: var(--button-panel-height);
+		display: flex;
+		flex-flow: row nowrap;
+		justify-content: center;
+		align-items: center;
+	}
+	
+	#poolList {
+		min-height: calc(100% - var(--title-panel-height) - var(--button-panel-height));
+		max-height: calc(100% - var(--title-panel-height) - var(--button-panel-height));
+		overflow-y: auto;
+	}
+	
+	#poolListCanvas {
+		position: absolute;
+	}
+	
+	#serverList {
+		min-height: calc(100% - var(--title-panel-height) - var(--filter-panel-height) - var(--button-panel-height));
+		max-height: calc(100% - var(--title-panel-height) - var(--filter-panel-height) - var(--button-panel-height));
+		overflow-y: auto;
+	}
+	
+	.listContainer .listPanel.loading {
+		opacity: 0.7;
+	}
+	
+	.listContainer .listPanel.loading:before {
+		content: "Loading...";
+	}
+	
+	#poolListContainer {
+		min-width: 50%;
+		max-width: 50%;
+		padding-right: 1em;
+	}
+	
+	#serverListContainer {
+		max-width: 50%;
+		min-width: 50%;
+	}
+	
+	#serverListFilter .radioLine, #serverListFilter .radioLine div.ownership {
+		display: flex;
+		flex-flow: row nowrap;
+		align-items: center;
+	}
+
+	#serverListFilter .radioLine label {
+		margin-right: 0.25em;
+		margin-bottom: 0px;
+	}
+	
+	#ownerOption div.ownership:nth-child(1) {
+		margin-right: 1em;
+	}
+	
+	#serverList {
+	    user-select: 			none;
+	    -moz-user-select: 		none;
+	    -webkit-user-select: 	none;
+	    -ms-user-select: 		none;  
+	}
+	
+	#dialogContainer {
+		position: absolute;
+		top: 0;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		
+		background-color: rgba(0, 0, 0, 0.33);
+		z-index: -1;
+	}
+	
+	div.dialog {
+		border: 1px solid black;
+		padding: .5em .25em;
+		background: white;
+	}
+	
+	div.dialogTitle {
+		font-size: 120%;
+		font-weight: bold;
+		margin-bottom: 0.5em;
+	}
+	
+	div.dialogBody {
+		margin-top: 0.25em;
+		margin-bottom: 0.25em;
+	}
+	
+	div.dialogBody table {
+		border-collapse: separate;
+		border-spacing: 0.25em;
+	}
+	
+	.pool {
+		border: medium solid transparent; 
+	}
+	
+	.pool.selected {
+		border-color: highlight;
+	}
+
+	.pool .header {
+		width: 20em;
+		display: flex;
+		flex-flow: row nowrap;
+		margin-bottom: 0.25em;
+	}
+	
+	.pool .icon {
+		flex: 0 0 auto;
+	}
+	
+	.pool .header > .icon.linux img,
+	.freeServer > .icon.linux img {
+		background-color: #ff4125;
+	}
+
+	.pool .header>.icon.solaris img,
+	.freeServer > .icon.solaris img {
+		background-color: yellow;
+	}
+	
+	.pool .header>.icon.hpux img,
+	.freeServer > .icon.hpux img{
+		background-color: #00f000;
+	}
+	
+	.pool .header>.icon.aix img,
+	.freeServer > .icon.aix img {
+		background-color: #add8e6;
+	}
+	
+	.pool .text {
+		flex: 1 0 auto;
+	}
+	
+	.pool .info {
+		display: flex;
+		flex-flow: row nowrap;
+		justify-content: center;
+	}
+	
+	.pool .body .filter {
+		margin-bottom: 0.25em;
+		padding-left: 0.25em;
+		padding-right: 0.25em;
+	}
+	
+	.pool .body .list {
+		padding-left: 0.25em;
+	}
+	
+	.pool .body .list {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(var(--pool-server-element-width), 1fr));
+		grid-gap: 0.25em;
+		gap: 0.25em;
+		
+		max-height: 40em;
+		overflow-y: auto;
+	}
+	
+	#poolList .pool .info div {
+		flex: 0 0 auto;
+		margin-left: .167em;
+		margin-right: .167em;
+	}
+	
+	.pool .info .busy {
+		color: var(--color-busy);
+	}
+	
+	.pool .info .prep {
+		color: var(--color-prep);
+	}
+	
+	.pool .info .down {
+		color: var(--color-down);
+	}
+	
+	.pool .info .avl {
+		color: var(--color-avl);
+	}
+	
+	.pool img {
+		height: 4em;
+		width: auto;
+		display: block;
+		object-fit: contain;
+	}
+	
+	div.server {
+		display: flex;
+		flex-flow: row nowrap;
+	}
+	
+	.server.selected {
+		background-color: highlight;
+		color: highlighttext;
+	}
+	
+	.server .icon {
+		flex: 0 0 auto;
+	}
+	
+	.server .text {
+		flex: 0 0 auto;
+		max-width: calc(100% - var(--server-icon-width, 1.33em) - var(--server-icon-margin, 0.5em));
+	}
+	
+	.server .text * {
+		text-align: left;
+		max-width: 100%;
+		overflow-x: hidden;
+		white-space: nowrap;
+		text-overflow: ellipsis;
+	}
+	
+	.server img {
+		height: auto;
+		width: var(--server-icon-width, 1.33em);
+		object-fit: contain;
+		margin-right: var(--server-icon-margin, 0.5em);
+	}
+	
+	.poolServer .icon.busy img {
+		background-color: var(--color-busy);
+	}
+	
+	.poolServer .icon.prep img {
+		background-color: var(--color-prep);
+	}
+	
+	.poolServer .icon.avl img {
+		background-color: var(--color-avl);
+	}
+	
+	.poolServer .icon.down img {
+		background-color: var(--color-down);
+	}
+	
+	div.freeServer {
+		margin: 0.25em;
+	}
+
+	table.serviceErrorInfo td {
+		padding-bottom: 0.5em;
+	}
+	
+	table.serviceErrorInfo td label {
+		margin-right: 0.25em;
+		margin-bottom: 0;
+	}
+	
+</style>
+<script type="text/javascript">
+
+	(function(){
+		'use strict';
+		
+		const osClassText= {1: 'hpux', 2: 'solaris', 3: 'aix', 4: 'linux'};
+		const instnStatusText= {avl: 'Available', busy: 'Busy', prep: 'Preparing', down: 'Down'}
+		
+		var dragging;
+		
+		class UIComponent {
+			constructor() {
+				Object.defineProperty(this, 'uiElement', {writable: true});
+			}
+			
+			attachToDOM() {
+				this.uiElement= $('#' + this.id);
+				if (this.uiElement.length == 0) {
+					this.uiElement= $(this.constructor.templateId).children().clone();
+					if (typeof this.attachEventHandlers == 'function') {
+						this.attachEventHandlers();
+					}
+				}
+			}
+
+			render() {
+				const NBSP= '\u00A0';
+
+				if (this.uiElement === undefined) {
+					this.attachToDOM();
+				}
+				
+				var moi= this;
+				
+				this.uiElement.attr('id', moi.id);
+				this.uiElement.data('item', moi);
+				
+				this.uiElement.find('[data-item-property]').each(function(){
+					var dv= this.dataset.itemDefault;
+					
+					var v= this.dataset.itemProperty
+					.split('.')
+					.reduce(function(carry, propertyPart){
+						if (carry === dv) {
+							return dv;
+						} else if (carry.hasOwnProperty(propertyPart)) {
+							return carry[propertyPart];
+						} else {
+							return dv;
+						}
+					}, moi);
+					
+					if (v === null) {
+						v= NBSP;
+					}
+					$(this).text(v);
+
+				});
+				
+				return this.uiElement;
+			}
+			
+			remove() {
+				this.uiElement.remove();
+				this.uiElement= undefined;
+			}
+			
+			canDrop() {
+				return false;
+			}
+			
+			onDragStart(event) {
+	            event.originalEvent.dataTransfer.setData("text", "");
+
+	            if (this.uiElement.hasClass('selected')) {
+	            	dragging= $(event.target)
+	            	          .siblings('.selected')
+	            	          .addBack()
+	            	          .map(function(element){return $(this).data('item')})
+	            	          .get();
+	            	
+	            } else {
+	            	this.uiElement.trigger('click');
+	            	dragging= [this];
+	            }
+			}
+			
+			onDragEnd(event) {
+				dragging= undefined;
+			}
+			
+			onDragEnter(event) {
+				if (this.canDrop()) {
+					event.preventDefault();
+					event.originalEvent.dataTransfer.dropEffect= "copy";
+				} 
+			}
+			
+			onDragLeave(event) {
+			}
+			
+			onDragOver(event) {
+				if (this.canDrop()) {
+					event.preventDefault();
+					event.originalEvent.dataTransfer.dropEffect= "copy";
+				} 
+			}
+		}
+		
+		class FreeServers extends UIComponent {
+			constructor() {
+				super();
+				this.servers= [];
+				Object.defineProperty(this, 'uiElement', {value: $('#serverList')});
+				
+				var moi= this;
+				this.uiElement
+				.on('dragenter', function(event){moi.onDragEnter.call(moi, event)})
+				.on('dragover', function(event){moi.onDragOver.call(moi, event)})
+				.on('drop', function(event){moi.onDrop.call(moi, event)})
+				;
+			}
+			
+			render() {
+				var moi= this;
+				this.servers.forEach(function(element){moi.uiElement.append(element.render())});
+			}
+			
+			canDrop() {
+				return Array.isArray(dragging) && dragging.length > 0 && dragging[0] instanceof PoolServer;
+			}
+			
+			onDrop(event) {
+				event.preventDefault(); event.stopPropagation();
+				showDialog($('#selectNewOwnerDialog'));
+			}
+		}
+			
+		class Pool extends UIComponent {
+			constructor(poolProperties) {
+				super();
+				
+				if (poolProperties === undefined) {
+					poolProperties= {};
+				}
+				
+				this.id             = poolProperties.id            ;
+				this.os             = poolProperties.os            ;
+				this.name           = poolProperties.name          ;
+				this.itRefCount     = poolProperties.itRefCount    ;
+				this.sstRefCount    = poolProperties.sstRefCount   ;
+				
+				this.instances      = []                           ;
+				this.instanceCounts = {}                           ;
+				
+				
+				Object.defineProperty(this, 'canRemove', {get: function() {return this.instances.length == 0 && this.itRefCount == 0 && this.sstRefCount == 0;}});
+			}
+			
+			static fromDTO(poolDTO) {
+				var p= new Pool({
+					id: poolDTO['ID'],
+					os: poolDTO['OS_ID'],
+					name: poolDTO['HOSTNAME'],
+					itRefCount: poolDTO['IT_CFG_REF_COUNT'],
+					sstRefCount: poolDTO['SST_CFG_REF_COUNT'],
+				});
+				
+				p.addInstances(poolDTO['INSTANCES'].map(function(element){return PoolServer.fromDTO(element);}));
+				
+				return p;
+			}
+			
+			addInstances(instances) {
+				this.instances= this.instances.concat(instances);
+				this.instances.sort(function(a, b){
+					const statusOrder= {down: 0, busy: 1, prep: 2, avl: 3};
+					// a < b: -1
+					// a = b: 0
+					// a > b: 1
+					
+					if (statusOrder[a.instnStatus] < statusOrder[b.instnStatus]) {
+						return -1;
+					} else if (a.instnStatus === b.instnStatus) {
+						return 0;
+					} else {
+						return 1;
+					}
+					
+				});
+				
+				var moi= this;
+				
+				this.instances.forEach(function(instance){
+					instance.containingPool= moi;
+				});
+				this.setInstanceCounts();
+			}
+			
+			removeInstances(instances) {
+				var removalSet= Set.fromArray(instances);
+				
+				this.instances= this.instances.filter(function(instance){return !removalSet.has(instance)});
+				
+				this.setInstanceCounts();
+			}
+			
+			setInstanceCounts() {
+				this.instanceCounts= {};
+				
+				var moi= this;
+				this.instances.forEach(function(instance){
+					
+					if (!moi.instanceCounts.hasOwnProperty(instance.instnStatus)) {
+						moi.instanceCounts[instance.instnStatus]= 1;
+					} else {
+						moi.instanceCounts[instance.instnStatus]+= 1;
+					}
+				});
+			}
+			
+			render() {
+				super.render();
+				var moi= this;
+				
+				this.uiElement.find('.header>.icon').addClass(osClassText[this.os]);
+				
+				var bodyElement= this.uiElement.find('.body');
+				var listElement= bodyElement.find('.list');
+				var filterElement= bodyElement.find('.filter');
+				
+				listElement.empty();
+				this.instances.forEach(function(element){
+					element.uiElement= undefined;
+					listElement.append(element.render());
+				});
+				
+				var ctx= $('#poolListCanvas')[0].getContext('2d');
+				ctx.font= $('#poolListCanvas').css('font');
+
+				var mw= 0;
+				mw= this.instances.reduce(function(a,i){
+					var tw= ctx.measureText(i.name);
+					if (tw.width > a) {
+						return tw.width;
+					} else {
+						return a;
+					}
+				}, mw);
+				
+				
+				const elemWidthRoundup= 1;		// extra width to stop text being truncated
+				this.uiElement.css('--max-pool-server-name-width', mw + elemWidthRoundup);
+				
+				
+				if (this.instances.length <= 10) {
+					filterElement.hide();
+					filterElement.find('input').val('');
+				} else {
+					filterElement.show();
+				}
+				
+				var visibleInstancesCount= this.filterInstances();
+				if (visibleInstancesCount == 0) {
+					filterElement.find('input').val('');
+					
+					this.uiElement
+					.find('.list .poolServer')
+					.show();
+				}
+				
+				bodyElement.toggle(this.uiElement.hasClass('selected'));
+				
+				return this.uiElement;
+			}
+			
+			attachEventHandlers() {
+				var moi= this;
+			
+				this.uiElement
+				.on('click', function(event){moi.onClick.call(moi, event)})
+				.on('dragenter', function(event){moi.onDragEnter.call(moi, event)})
+				.on('dragleave', function(event){moi.onDragLeave.call(moi, event)})
+				.on('dragover', function(event){moi.onDragOver.call(moi, event)})
+				.on('drop', function(event){moi.onDrop.call(moi, event)})
+				;
+				
+				this.uiElement
+				.find('div.filter input')
+				.on('click', function(event){event.stopPropagation();})
+				.on('input', $.debounce(200, function(){moi.filterInstances.call(moi)}));
+			}
+			
+			canDrop() {
+				return 	(Array.isArray(dragging) && dragging.length > 0) &&
+						((dragging[0] instanceof Server && dragging[0].os === this.os) ||
+						 (dragging[0] instanceof PoolServer && dragging[0].containingPool !== this && dragging[0].containingPool.os === this.os))
+				      ;
+			}
+			
+			filterInstances() {
+				var targetElement= this.uiElement.find('div.filter input');
+				var wildcardFilterRE= makeWildcardFilterRegEx(targetElement.val())
+				
+				var visibleCount= 0;
+				
+				this.uiElement
+				.find('.list .poolServer')
+				.each(function(){
+					var instance= $(this).data('item');
+					
+					if (instance.matches(wildcardFilterRE)) {
+						$(this).show(); visibleCount+= 1;
+					} else {
+						$(this).hide();
+					}
+				});
+				
+				return visibleCount;
+			}
+
+			onClick(event) {
+				var previousSelection= $('#poolList .pool.selected');
+				
+				if (this !== previousSelection.data('item')) {
+					previousSelection.removeClass('selected');
+					previousSelection.find('.body').toggle(false);
+					this.uiElement.addClass('selected');
+					this.uiElement.find('.body').toggle(true);
+					
+				} else {
+					if (!event.ctrlKey) {
+						this.uiElement.find('.body').toggle();
+					} else {
+						this.uiElement.removeClass('selected');
+						this.uiElement.find('.body').toggle(false);
+					}
+				}
+				
+				updateUI();
+
+			}
+			
+			onDrop(event) {
+				if (Array.isArray(dragging) && dragging.length > 0) {
+					if (dragging[0] instanceof Server) {
+						// add servers to pool
+						event.preventDefault(); event.stopPropagation();
+						addServersToPool(this, dragging);
+					} else if (dragging[0] instanceof PoolServer && dragging[0].pool != this){
+						event.preventDefault(); event.stopPropagation();
+						moveServersToPool(this, dragging);
+					}
+				}
+			}
+			
+		}
+		Pool.templateId= '#poolTemplate';
+		
+		class PoolServer extends UIComponent {
+			constructor (poolServerProperties) {
+				super();
+				
+				this.id= poolServerProperties.id;
+				this.name= poolServerProperties.name;
+				this.poolId= poolServerProperties.poolId;
+				this.instnStatus= poolServerProperties.instnStatus;
+
+				Object.defineProperty(this, 'containingPool', {writable: true});
+			}
+			
+			static fromDTO(poolServerDTO) {
+				return new PoolServer({
+					id: poolServerDTO['ID'],
+					name: poolServerDTO['NAME'],
+					poolId: poolServerDTO['POOL_ID'],
+					instnStatus: poolServerDTO['INSTN_STATUS']
+				});
+			}
+			
+			render() {
+				super.render();
+				
+				this.uiElement.find('.icon').addClass(this.instnStatus);
+				this.uiElement.attr('title', instnStatusText[this.instnStatus]);
+				
+				return this.uiElement;
+			}
+			
+			attachEventHandlers() {
+				var moi= this;
+				
+				this.uiElement
+				.on('click', function(event){moi.onClick.call(moi, event);})
+				.on('dragstart', function(event){moi.onDragStart.call(moi, event);})
+				.on('dragend', function(event){moi.onDragEnd.call(moi, event);})
+				;
+			}
+			
+			matches(wildcardFilterRE) {
+				return wildcardFilterRE.test(this.name); 
+			}
+
+			onClick(event) {
+				event.stopPropagation();
+				selectionHandler($(event.currentTarget).parent(), event);
+				
+				updateUI();
+			}
+		
+			
+		}
+		PoolServer.templateId= '#poolServerTemplate';
+		
+		class Server extends UIComponent {
+			constructor(serverDTO) {
+				super();
+				
+				this.id= serverDTO['ID'];
+				this.name= serverDTO['HOSTNAME'];
+				this.os = serverDTO['OS_ID'];
+				this.label= serverDTO['LBL'];
+				this.ownerList= serverDTO['OWNERS'];
+				this.owners= this.ownerList == null ? [] : this.ownerList.replace('+', '').split(',');
+			}
+			
+			attachEventHandlers() {
+				var moi= this;
+				
+				this.uiElement
+				.on('click', function(event){moi.onClick.call(moi, event);})
+				.on('dragstart', function(event){moi.onDragStart.call(moi, event);})
+				.on('dragend', function(event){moi.onDragEnd.call(moi, event);})
+				;
+			}
+			
+			render() {
+				super.render();
+				
+				this.uiElement.find('.icon').addClass(osClassText[this.os]);
+				
+				return this.uiElement;
+			}
+			
+			hasOwner(owner) {
+				if (owner == "") {
+					return this.owners.length == 0;
+				} else {
+					return this.owners.includes(owner);
+				}
+			}
+
+			matches(wildcardFilterRE) {
+				var moi= this;
+				
+				return ['name', 'label', 'ownerList'].reduce(function(outerResult, propertyName){
+					if (outerResult) {
+						return outerResult;
+					} else {
+						return wildcardFilterRE.test(moi[propertyName]);
+					}
+				}, false);
+			}
+			
+			onClick(event) {
+				selectionHandler($('#serverList'), event);
+				updateUI();
+			}
+			
+			
+		}
+		Server.templateId= '#serverTemplate';
+		
+		function getServerSearchParameters()
+		{	return {
+				ownerOption: $('#ownerOption').find('input:checked').val(),
+				userName: $('#owners option:selected').val(),
+				wildcardFilterRE: makeWildcardFilterRegEx($('#serverFilter').val())
+			}
+		}
+		
+		function applyServerFilter() {
+			var searchParameters= getServerSearchParameters();
+			
+			$('#serverList .freeServer').each(function(){
+				var server= $(this).data('item');
+				
+				if ((searchParameters.ownerOption == "all" || server.hasOwner(searchParameters.userName)) && server.matches(searchParameters.wildcardFilterRE)) {
+					$(this).show();
+				} else {
+					$(this).hide();
+				}
+			});
+		}
+		
+		function makeWildcardFilterRegEx(string) {
+			var s= 	string
+					.split('*')
+					.map(function(stringPart){
+							return 	stringPart
+									.split('?')
+									.map(function(partPart){
+											return partPart.regexEscape();
+									})
+									.join('.')
+									;
+					})
+					.join('.*')
+					;
+			
+			return new RegExp(s, 'i');
+		}
+		
+		function selectionHandler(parentElement, event) {
+			var targetObject= $(event.currentTarget);
+			
+			if (!(event.ctrlKey || event.shiftKey)) {
+				parentElement.find('.selectable.selected').removeClass('selected');
+				targetObject.addClass('selected');
+			} else {
+				if (event.ctrlKey) {
+					targetObject.toggleClass('selected');
+				} else {
+					var selectedElements= parentElement.find('.selectable.selected'), selection= $(), selectionOpen= false, selectionEnded= false;
+
+					parentElement.find('.selectable')
+					.filter(function(index, element){return !element.hidden && $(element).css('display') != 'none'})
+					.each(function(index, element){
+						var fsElement= $(element);
+						
+						if (element == event.currentTarget) {
+							selection= selection.add(fsElement);
+							if (selectionOpen) {
+								selectionOpen= false; selectionEnded= true;
+                            } else if (selectedElements.length > 0) {
+                                selectionOpen= true; selectionEnded= false;
+							}
+							
+						} else if (fsElement.hasClass('selected')) {
+                            if (!selectionOpen && !selectionEnded) {
+                                selection= selection.add(element);
+                                selectionOpen= true;
+                            } else if (selectionOpen) {
+	                            if (selection[0] == event.currentTarget) {
+	                                selectionOpen= false;
+	                                selectionEnded= true;
+	                            } else {
+	                                selection= $(element);
+	                            }
+                            }
+						} else {
+							if (selectionOpen) {
+								selection= selection.add(fsElement);
+							}
+						}
+					});
+					selection.addClass("selected");
+				}
+			}
+		}
+		
+		function scaleToScreen(element)
+		{
+		  if (element === undefined) return;
+		  
+		  var h= $(window).height() - element.offset().top - 15;
+		  
+		  element.css({maxHeight: h, height: h});
+		}
+		
+		
+		function addPool() {
+			var poolProperties = getPropertiesFromElement($('#addPoolDialog'));
+			
+			var newPool= new Pool(poolProperties);
+			putPool(newPool, undefined, function(data){$('#poolList').append(Pool.fromDTO(data[0]).render())});
+		}
+		
+		function addServersToPool(targetPool, selectedServers) {
+			setBusyFlags(targetPool, selectedServers, true);
+			
+			targetPool.addInstances(selectedServers.map(function(server){return new PoolServer({id: server.id, name: server.name})}))
+			
+			putPool(targetPool, undefined, function(data){
+				selectedServers.forEach(function(server) {
+					server.remove();
+				});
+				
+				var newPool= Pool.fromDTO(data[0]);
+				newPool.render();
+			});
+		}
+		
+		function addPoolBtnHandler() {
+			showDialog($('#addPoolDialog'), {name: "", os: 4});
+		}
+		
+		function addServersToPoolBtnHandler() {
+			var selectedPool= $('#poolList .pool.selected').data('item');
+			var selectedServers= $('#serverList .freeServer.selected')
+				.map(function(){
+					return $(this).data('item')
+				})
+				.get();
+			
+			addServersToPool(selectedPool, selectedServers);
+		}
+		
+		function showDialog(dialogElement, data) {
+			if (data !== undefined) {
+				setPropertiesInElement(dialogElement, data);
+			}
+			
+			$('#dialogContainer')
+			.css({zIndex: 1})
+			.show()
+			;
+			
+			dialogElement.show();
+			
+			dialogElement.find('input')
+			.first()
+			.trigger('focus');
+		}
+		
+		function closeDialog(dialogElement, ok) {
+			dialogElement.hide();
+			$('#dialogContainer')
+			.css({zIndex: -1})
+			.hide()
+			;
+			
+			if (ok) {
+				var okCallback= $(dialogElement).data('okCallback');
+				
+				if (typeof okCallback == "function") {
+					okCallback();
+				}
+			}
+			
+		}
+		
+		function setPropertiesInElement(element, data) {
+			element
+		    .find('[data-item-property]').each(
+	            function(){
+	            	var propertyName= this.dataset.itemProperty;
+	            	
+	            	if ((propertyName !== undefined) && (data.hasOwnProperty(propertyName))) {
+	            		if ('value' in this) {
+				            if (this.type === 'checkbox') {
+				            	$(this).prop("checked", data[propertyName]);
+				            } else {
+				                $(this).val(data[propertyName]);
+				                $(this).trigger('chosen:updated');
+				            }
+	            		} else {
+	            			if (this.dataset.itemContent == "html") {
+	            				$(this).html(data[propertyName]);
+	            			} else {
+	            				$(this).text(data[propertyName]);
+	            			}
+	            			
+	            		}
+	            	}
+	            });
+
+		}
+		
+		function getPropertiesFromElement(element) {
+			var properties= {};
+			element
+		    .find('input[data-item-property],select[data-item-property],textarea[data-item-property]').each(
+	            function(){
+		          	var value;
+		          	
+		            if (this.type === 'checkbox') {
+		                value= $(this).prop("checked");
+		            } else {
+		                value= $(this).val();
+		            }
+		          	
+		            properties[this.dataset.itemProperty]= value;
+	            });
+			
+			return properties;
+		}
+		
+		function removePoolServerBtnHandler() {
+			showDialog($('#selectNewOwnerDialog'));
+		}
+		
+		function moveServersToPool(newPool, servers) {
+			if (Array.isArray(servers) && servers.length > 0) {
+				setBusyFlags(newPool, [], true);
+				
+				var oldPool= servers[0].containingPool;
+				
+				oldPool.removeInstances(servers);
+				
+				newPool.addInstances(servers);
+				putPool(newPool, null, function(data){
+					oldPool.render();
+					newPool.render();
+				});
+				
+			}
+			
+			
+		}
+		
+		function removePoolServers(newOwnerID) {
+			var selectedPool= $('#poolList .pool.selected').data('item');
+			setBusyFlags(selectedPool, [], true);
+			
+			var selectedPoolServers= $('#poolList .poolServer.selected')
+				.map(function(){
+					return $(this).data('item')
+				})
+				.get();
+			
+			selectedPool.removeInstances(selectedPoolServers)
+			
+			putPool(selectedPool, newOwnerID, function(data){
+				var newPool= Pool.fromDTO(data[0]);
+				newPool.render();
+				
+				getServers();
+			});
+		}
+		
+		function removePoolBtnHandler() {
+			var selectedPool= $('#poolList .pool.selected').data('item');
+			
+			setBusyFlags(selectedPool, [], true);
+			
+			$.ajax({
+				url: '/api/pools/' + selectedPool.id,
+				method: "delete"
+			})
+			.done(function(data, textStatus, jqXHR){
+				selectedPool.remove();
+			})
+			.fail(function(data, textStatus, jqXHR){
+				displayServiceError(data);
+			})
+			.always(function(){
+				resetAllBusyFlags();
+				updateUI();
+			})
+			;
+		}
+		
+		function setBusyFlags(pool, servers) {
+			$('#' + pool.id).addClass('object-busy');
+			
+			servers.forEach(function(server){
+				$('#' + server.id).addClass('object-busy');
+			});
+		}
+		
+		function resetAllBusyFlags() {
+			$('#poolManagement .object-busy').removeClass('object-busy');
+		}
+		
+		function putPool(pool, newOwner, successCallback) {
+			var requestData = {
+				pool: pool,
+				newOwner: newOwner
+			};
+			
+			$.post({
+			  url: '/api/pools' + (requestData.pool.id === undefined ? "" : "/" + requestData.pool.id),
+			  data: JSON.stringify(requestData),
+			  contentType: 'application/json'
+			})
+			.done(function(data, textStatus, jqXHR){
+				if (typeof successCallback == "function") {
+					successCallback(data);
+				}
+				
+				updateUI();
+			})
+			.fail(function(data, textStatus, jqXHR){displayServiceError(data);})
+			.always(function(){resetAllBusyFlags()})
+			;
+		}
+		
+		function getPools() {
+			var poolListElement= $('#poolList');
+			
+			poolListElement
+			.addClass('loading')
+			.empty()
+			;
+			
+			$.get("/api/pools")
+			.done(function(data, textStatus, jqXHR){
+				var pools= data.map(function(element){return Pool.fromDTO(element)});
+				
+				pools.forEach(function(element){
+					poolListElement.append(element.render());
+				});
+				
+			})
+			.fail(function(data, textStatus, jqXHR){
+				displayLoadError(poolListElement, data);
+			})
+			.always(function(){poolListElement.removeClass('loading');})
+			;
+		}
+		
+		function getServers() {
+			var serverListElement= $('#serverList');
+			
+			serverListElement
+			.addClass('loading')
+			.empty()
+			;
+			
+			$.get({
+				url: "/api/servers",
+			})
+			.done(function(data, textStatus, jqXHR){
+				serverListElement.removeClass('loading');
+				
+				var serverList= serverListElement.data('item');
+				serverList.servers= data.map(function(element){return new Server(element);})
+				serverList.render();
+				
+				applyServerFilter();
+			})
+			.fail(function(data, textStatus, jqXHR){
+				displayLoadError(serverListElement, data);
+			})
+			.always(function(){serverListElement.removeClass('loading');})
+			;
+		}
+		
+		function displayLoadError(listElement, serviceResponse) {
+			var errorInfoElement= $('#serviceErrorTemplate').children().clone();
+			
+			setPropertiesInElement(errorInfoElement, serviceResponse);
+			
+			listElement.append(errorInfoElement);
+		}
+		
+		function displayServiceError(serviceResponse) {
+			if ($('#serviceErrorDialog div.dialogBody *').length == 0) {
+				$('#serviceErrorDialog div.dialogTitle').append($('#serviceErrorTemplate div.dialogTitle').children().clone());
+				$('#serviceErrorDialog div.dialogBody').append($('#serviceErrorTemplate div.dialogBody').children().clone());
+			}
+			
+			showDialog($('#serviceErrorDialog'), serviceResponse);
+		}
+		
+		function updateUI() {
+			var selectedPool= $('#poolList .pool.selected');
+			var selectedServers= $('#serverList .freeServer.selected');
+			
+			$('#addPoolBtn').prop('disabled', !actionConfig['add_pool']);
+			$('#rmvPoolBtn').prop('disabled', !actionConfig['rm_pool'] || selectedPool.length == 0 || !selectedPool.data('item').canRemove);
+			$('#rmvServerBtn').prop('disabled', !actionConfig['rm_virt_srv_from_pool'] || selectedPool.length == 0 || selectedPool.find('.poolServer.selected').length == 0);
+			
+			var addToPoolDisabled= true;
+			var freeServerDraggable= selectedServers.length > 0;
+			
+			if (selectedPool.length > 0 && actionConfig['add_virt_srv_to_pool']) {
+				if (selectedServers.length > 0) {
+					// check OS
+					var serverOS= selectedServers
+						.map(function(){return $(this).data('item')})
+						.get()
+						.reduce(function(os, server){
+							if (os !== null && os !== server.os) {
+								return undefined
+							} else {
+								return server.os
+							}
+						}, null);
+					
+					addToPoolDisabled= serverOS !== selectedPool.data('item').os;
+					freeServerDraggable= serverOS !== undefined 
+				}
+			}
+			
+			$('#addToPoolBtn').prop('disabled', addToPoolDisabled);
+			$('#serverList .freeServer').attr('draggable', freeServerDraggable.toString());
+			$('#poolList .poolServer').attr('draggable', (actionConfig['rm_virt_srv_from_pool']).toString());
+			
+		}
+		
+		function onDocumentLoad() {
+			
+			$('#dialogContainer').hide();
+			$('.dialog').hide();
+			
+			$('#serverList').data('item', new FreeServers());
+			
+			getPools();
+			getServers();
+			
+			$('#ownerSelect')
+			.on('click', function(event){
+				$('#ownershipOwnedBy').prop('checked', true);				
+			});
+			
+			$('#ownerOption')
+			.on('click', function(event){
+				applyServerFilter();
+			});
+			
+			$('#serverFilter')
+			.on('input', $.debounce(200, function(event){
+				applyServerFilter();
+			}));
+			
+			$('#addPoolBtn')
+			.on('click', addPoolBtnHandler);
+			
+			$('#rmvPoolBtn')
+			.on('click', removePoolBtnHandler);
+			
+			$('#rmvServerBtn')
+			.on('click', removePoolServerBtnHandler);
+			
+			$('#addToPoolBtn')
+			.on('click', addServersToPoolBtnHandler);
+			
+			$('#addPoolDialog').data('okCallback', addPool);
+			
+			$('#selectNewOwnerDialog').data('okCallback', function(){
+				var newOwner= getPropertiesFromElement($('#selectNewOwnerDialog'));
+				removePoolServers(newOwner.id);
+			});
+			
+			$('#dialogContainer .dialog')
+			.on('click', function(event){
+				event.stopPropagation();
+				event.preventDefault();
+			});
+			
+			$('div.dialog input[type=button].btn')
+			.on('click', function(event){
+				var dialog= $(event.currentTarget).parents('div.dialog');
+				
+				closeDialog(dialog, event.currentTarget.dataset.dialogResult == "ok");
+			});
+			
+			$('div.dialog')
+			.on('keyup', function(event){
+				if (event.key == "Enter") {
+					closeDialog($(event.currentTarget), true);
+				} else if (event.key == "Escape") {
+					closeDialog($(event.currentTarget), false);
+				}
+			})
+			$(window)
+			.on('resize', function(){
+				scaleToScreen($('#poolManagement'));
+			})
+			.trigger('resize');
+			
+			updateUI();
+		}
+		
+		$(onDocumentLoad);
+	})();
+</script>
+<div id="poolTemplate" class="template">
+	<div class="pool">
+		<div class="header">
+			<div class="icon">
+				<img src="/img/simple_server.svg" draggable="false">
+			</div>
+			<div class="text">
+				<div class="name" data-item-property="name">
+					name
+				</div>
+				<div class="info">
+					<div data-item-property="instanceCounts.down" data-item-default="0" class="down" title="Down"></div>
+					<div data-item-property="instanceCounts.busy" data-item-default="0" class="busy" title="Busy"></div>
+					<div data-item-property="instanceCounts.prep" data-item-default="0" class="prep" title="Preparing"></div>
+					<div data-item-property="instanceCounts.avl"  data-item-default="0" class="avl"  title="Available"></div>
+				</div>
+			</div>
+		</div>
+		<div class="body">
+			<div class="filter">
+				<input class="form-control" type='text' placeholder="Filter" name='filter' value="">
+			</div>
+			<div class="list">
+			</div>
+		</div>
+	</div>
+</div>
+<div id="poolServerTemplate" class="template">
+	<div class="poolServer server selectable" draggable="true">
+		<div class="icon">
+			<img src="/img/simple_server.svg" draggable="false">
+		</div>
+		<div class="text">
+			<div data-item-property="name"></div>
+		</div>
+	</div>
+</div>
+<div id="serverTemplate" class="template">
+	<div class="freeServer server selectable" draggable="true">
+		<div class="icon">
+			<img src="/img/simple_server.svg"  draggable="false">
+		</div>
+		<div class="text">
+			<div data-item-property="name"></div>
+			<div data-item-property="label"></div>
+			<div data-item-property="ownerList"></div>
+		</div>
+	</div>
+</div>
+<div id="serviceErrorTemplate" class="template">
+	<div class="dialogTitle">
+		Service Error
+	</div>
+	<div class="dialogBody">
+		<table class="serviceErrorInfo">
+			<tr>
+				<td><label>Status</label></td>
+				<td><div data-item-property="status"></div></td>
+			</tr>
+			<tr>
+				<td><label>Status Text</label></td>
+				<td><div data-item-property="statusText"></div></td>
+			</tr>
+			<tr>
+				<td><label>Message</label></td>
+				<td><div data-item-property="responseText" data-item-content="html"></div></td>
+			</tr>
+		</table>
+	</div>
+</div>
+<div id="poolManagement" class="poolManagement">
+	<div id="dialogContainer">
+		<div id="addPoolDialog" class="dialog">
+			<div class="dialogTitle">
+				Add Pool
+			</div>
+			<div class="dialogBody">
+				<table>
+					<tr>
+						<td><label>Name</label></td>
+						<td><input type="text" data-item-property="name" size="30"></td>
+					</tr>
+					<tr>
+						<td><label>OS</label></td>
+						<td>{osSelect}</td>
+					</tr>
+				</table>
+			</div>
+		    <div class='buttonlist'>
+		      <input type='button' class="btn btn-primary btn-ok"     data-dialog-result= "ok"     value='OK'      > 
+		      <input type='button' class="btn btn-primary btn-cancel" data-dialog-result= "cancel" value='Cancel'  >
+		    </div> 
+		</div>
+		
+		<div id="selectNewOwnerDialog" class="dialog">
+			<div class="dialogTitle">
+				Select New Owner
+			</div>
+			<div class="dialogBody">
+				<table>
+					<tr>
+						<td><label>New Owner</label></td>
+						<td>{userSelect}</td>
+					</tr>
+				</table>
+		    <div class='buttonlist'>
+		      <input type='button' class="btn btn-primary btn-ok"     data-dialog-result= "ok"     value='OK'      > 
+		      <input type='button' class="btn btn-primary btn-cancel" data-dialog-result= "cancel" value='Cancel'  >
+		    </div> 
+			</div>
+		</div>
+		
+		<div id="serviceErrorDialog" class="dialog">
+			<div class="dialogTitle">
+				Service Error
+			</div>
+			<div class="dialogBody">
+			</div>
+		    <div class='buttonlist'>
+		      <input type='button' class="btn btn-primary btn-ok"     data-dialog-result= "ok"     value='OK'      >
+			</div> 
+		</div>
+	
+	</div>
+	<div id="poolListContainer" class="listContainer">
+		<canvas id="poolListCanvas"></canvas>
+		<div class="titlePanel">
+			Pools
+		</div>
+		<div id="poolList" class="listPanel">
+		</div>
+		<div id="poolButtonPanel" class="buttonPanel">
+			<input type='button' class="btn btn-primary" name='action' value='Add Pool'         id="addPoolBtn" >			
+			<input type='button' class="btn btn-primary" name='action' value='Remove Pool'      id="rmvPoolBtn" >			
+			<input type='button' class="btn btn-primary" name='action' value='Remove From Pool' id="rmvServerBtn" >			
+		</div>
+	</div>
+	
+	<div id="serverListContainer" class="listContainer">
+		<div class="titlePanel">
+			Servers
+		</div>
+		<div id="serverListFilter" class="filterPanel">
+			<!--  first thing I want: owned / all -->
+			<div id="ownerOption" class="radioLine">
+				<div class="ownership">
+					<input type="radio" id="ownershipAll" name="ownership" value="all" checked="checked">
+					<label for="ownershipAll">All</label>
+				</div>				 
+				<div class="ownership">
+					<input type="radio" id="ownershipOwnedBy" name="ownership" value="ownedBy">
+					<label for="ownershipOwnedBy">Owned By:</label>
+				</div>
+				<div id="ownerSelect">
+					{ownerSelect}
+				</div>
+			</div>
+			<div>
+				<input class="form-control" type='text' placeholder="Filter" name='filter' value="" id='serverFilter'>
+			</div>
+		</div>
+		<div id="serverList" class="listPanel">
+			
+		</div>
+		<div id="serverButtonPanel" class="buttonPanel">
+			<input type='button' class="btn btn-primary" name='action' value='Add To Pool'      id="addToPoolBtn" >
+		</div>			
+	</div>
+</div>

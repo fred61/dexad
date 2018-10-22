@@ -91,7 +91,7 @@
 					.done(function(data, textStatus, jqXHR){
 						console.log("got data from source", data);
 						$this.removeClass('loading');
-						new buildTree(data, treeContainer);
+						buildTree(data, treeContainer);
 					})
                     .fail(function(jqXHR, textStatus, errorThrown) {
                         console.log("get failed", textStatus, errorThrown, jqXHR);
