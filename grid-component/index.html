@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <script defer src="grid.js"></script>
+    <script type="text/javascript">
+        (function () {
+            class Model {
+                get(row, col) {
+                    return `${row} / ${col}`;
+                }
+            }
+            
+            function changeListeningMixin(baseClass) {
+                return class extends baseClass {
+                    #listeners= [];
+                    
+                    addListener(listener) {
+                        this.#listeners.push(listener)
+                    }
+                    
+                    notifyListeners() {
+                        this.#listeners.forEach((listener) => listener.onChange());
+                    }
+                }
+            }
+            
+            class GridAdapter extends changeListeningMixin(class {}) {
+                #model;
+                
+                constructor(model) {
+                    super();
+                    this.#model= model;
+                }
+                
+                renderCell(row, col, cell) {
+                    let v= this.#model.get(row, col);
+                    cell.innerText= v;
+                }
+            }
+            
+            window.onload= () => {
+                console.log("document load");
+                
+                let o= document.getElementById("theGrid");
+                console.log("theGrid", o);
+                
+                if (o instanceof customElements.get('cell-grid')) {
+                    o.adapter= new GridAdapter(new Model());
+                } else {
+                    console.log("dammit daniel");
+                }
+            }
+            console.log("Yo", document);
+        }
+        )();
+    </script>
+	<style>
+		div {
+			border: 1px solid black;
+			padding: 1px;
+			margin: 1px;
+        }
+        cell-grid.grid1 {
+            background-color: bisque;
+            width: 350px;
+            height: 700px;
+        }
+        cell-grid.grid2 {
+            background-color: aqua;
+            width: 120px;
+            height: 120px;
+        }
+	</style>
+    <title>Grid Component Test</title>
+  </head>
+  <body>
+    <h1>Grid Component Test</h1>
+    <div class="cell"> random text </div>
+    <div>
+		<cell-grid class="grid1" major=3 minor=3 cellSize=30 id="theGrid" />
+    </div>
+    <div>
+		<cell-grid class="grid2" major=1 minor=3 id="theOtherGrid" />
+    </div>
+
+  </body>
+</html>
+
+<!--
+    goal: make it so I can type numbers into cells.
+    this means that there is one cell which has "the focus", which needs visualising
+    
+-->
