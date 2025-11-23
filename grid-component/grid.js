@@ -1,35 +1,68 @@
 (
-    
-    function() {
+
+    function () {
         'use strict'
-        
+
         class CellGrid extends HTMLElement {
-            #majorCellCount;
-            #minorCellCount;
-            #container;
+            #majorRowCells; #minorRowCells;
+            #majorColCells; #minorColCells;
+            #host;
             #adapter;
-            
+
             constructor() {
                 super();
-                
-                this.onfocus= (event) => console.log("focus", event);
-                this.onblur= (event) => console.log("blur", event);
 
-                this.setAttribute("tabindex", 0);
-                this.addEventListener('keydown', (event) => {
-                    console.log("keydown", event);
-                    console.log("code", event.code);
-                });
-                
-                this.#majorCellCount= this.getAttribute('major');
-                this.#minorCellCount= this.getAttribute('minor');
+                if (this.hasAttribute('major')) {
+                    this.#majorRowCells= this.getAttribute('major');
+                    this.#majorColCells= this.#majorRowCells;
+                }
 
+                if (this.hasAttribute('minor')) {
+                    this.#minorRowCells = this.getAttribute('minor');
+                    this.#minorColCells= this.#minorRowCells
+                }
+
+                if (this.hasAttribute('majorRows')) {
+                    this.#majorRowCells= this.getAttribute('majorRows');
+                    if (this.hasAttribute('minorRows')) {
+                        this.#minorRowCells= this.getAttribute('minorRows');
+                    } else {
+                        this.#minorRowCells= 1;
+                    }
+                }
+                
+                if (this.hasAttribute('majorCols')) {
+                    this.#majorColCells= this.getAttribute('majorCols');
+                    if (this.hasAttribute('minorCols')) {
+                        this.#minorColCells= this.getAttribute('minorCols');
+                    } else {
+                        this.#minorColCells= 1;
+                    }
+                }
+
+                const container = this.attachShadow({ mode: 'open' });
+                container.appendChild(this.cellStyle());
+
+                this.#host = document.createElement('div');
+                container.appendChild(this.#host);
+
+                this.createCells();
+
+                if (this.getAttribute('tabindex') != null) {
+                    this.enableFocus();
+                }
+            }
+
+            cellStyle() {
                 let cellStyle = document.createElement('style');
-                cellStyle.textContent = `                
+                cellStyle.textContent = `  
                     :host {
                         display: grid;
-                        grid-template-rows: repeat(${this.#majorCellCount * this.#minorCellCount}, 1fr);
-                        grid-template-columns: repeat(${this.#majorCellCount * this.#minorCellCount}, 1fr);
+                    }              
+                    :host>div {
+                        display: grid;
+                        grid-template-rows: repeat(${this.#majorRowCells * this.#minorRowCells}, 1fr);
+                        grid-template-columns: repeat(${this.#majorColCells * this.#minorColCells}, 1fr);
                     }
                     .cell {
                         border-right: 1px dashed silver;
@@ -43,10 +76,10 @@
                     .left-col {
                         border-left: 2px solid black;
                     }
-                    .minor-right {
+                    .major-right {
                         border-right: 1px solid black;
                     }
-                    .minor-bottom {
+                    .major-bottom {
                         border-bottom: 1px solid black;
                     }
                     .right-col {
@@ -59,93 +92,143 @@
                         border: none;
                         flex-grow: 1;
                     }
-                    div:focus {
-                        background-color: lavender;
-                    }
-                    :host:focus .focus {
-                        border: 1px solid gold;
+                    :host(:focus) .cellContent.focus {
+                        border: 1px solid red;
                     }
                 `;
-//this is not the final word. grid doesn't do border collapse
-// one alternative approach is grid-gap and have background of container be border color
-// would need to restructure, can't have 1 grid, would need separate major / minor grids
-// cannot do any border style other than solid this way, either
-// I can do my own "border collapse" by being careful which borders are defined.
-// can't use outline for visualising focus under these circumstances though, have to use border.
-// have to be careful with priority. focus has prio over normal cell borders.
-// not gonna work because of "collapse". left border of cell is actually right border of previous cell.
-                
-                this.#container= this.attachShadow({mode: 'open'});
-                this.#container.appendChild(cellStyle);
-                
-                for(let i= 0; i < this.#majorCellCount * this.#minorCellCount; i++) {
-                    for(let j= 0; j < this.#majorCellCount * this.#minorCellCount; j++) {
-                        const cell= document.createElement('div');
+
+                return cellStyle;
+
+                //this is not the final word. grid doesn't do border collapse
+                // one alternative approach is grid-gap and have background of container be border color
+                // would need to restructure, can't have 1 grid, would need separate major / minor grids
+                // cannot do any border style other than solid this way, either
+                // I can do my own "border collapse" by being careful which borders are defined.
+                // can't use outline for visualising focus under these circumstances though, have to use border.
+                // have to be careful with priority. focus has prio over normal cell borders.
+                // not gonna work because of "collapse". left border of cell is actually right border of previous cell.
+            }
+
+            createCells() {
+                for (let i = 0; i < this.#majorRowCells * this.#minorRowCells; i++) {
+                    for (let j = 0; j < this.#majorColCells * this.#minorColCells; j++) {
+                        const cell = document.createElement('div');
                         cell.classList.add('cell');
-                        
+
                         if (i == 0) {
                             cell.classList.add('top-row');
                         }
                         if (j == 0) {
                             cell.classList.add('left-col');
                         }
-                        if (i > 0 && i % this.#minorCellCount == this.#minorCellCount - 1) {
-                            cell.classList.add('minor-bottom');
+                        if (i % this.#minorRowCells == this.#minorRowCells - 1) {
+                            cell.classList.add('major-bottom');
                         }
-                        if (j > 0 && j % this.#minorCellCount == this.#minorCellCount - 1) {
-                            cell.classList.add('minor-right');
+                        if (j % this.#minorColCells == this.#minorColCells - 1) {
+                            cell.classList.add('major-right');
                         }
-                        if (i == this.#majorCellCount * this.#minorCellCount - 1) {
+                        if (i == this.#majorRowCells * this.#minorRowCells - 1) {
                             cell.classList.add('bottom-row');
                         }
-                        if (j == this.#majorCellCount * this.#minorCellCount - 1) {
+                        if (j == this.#majorColCells * this.#minorColCells - 1) {
                             cell.classList.add('right-col');
                         }
-                        cell.dataset.row= i;
-                        cell.dataset.col= j;
-                        
-                        const cellContent= document.createElement('div');
+
+                        const cellContent = document.createElement('div');
+                        cellContent.dataset.row = i;
+                        cellContent.dataset.col = j;
                         cellContent.classList.add('cellContent');
-                        
+
                         cell.appendChild(cellContent);
-                        
-                        this.#container.appendChild(cell);
+
+                        this.#host.appendChild(cell);
                     }
                 }
-                let focusCell= this.#container.firstChild.nextSibling;
-                focusCell.firstChild.classList.add('focus');
-                
-                this.#container.addEventListener("click", (event) => {
-                    let currentFocusCell= this.#container.querySelector('div.cellContent.focus');
+            }
+
+            enableFocus() {
+                //click handler must be registered inside shadow dom or event target props are not useful
+                this.#host.addEventListener('click', (event) => {
+                    const currentFocusCell = this.#host.querySelector('div.cellContent.focus');
                     if (currentFocusCell !== null) {
                         currentFocusCell.classList.remove('focus');
                     }
-                    let targetCell= event.target;
-                    while (!targetCell.classList.contains('cellContent')) {
-                        targetCell= targetCell.parent;
+                    let targetCell = event.target;
+                    while (targetCell != undefined && !targetCell.classList.contains('cellContent')) {
+                        targetCell = targetCell.parent;
                     }
-                    //TODO safety net for no cell found
-                    targetCell.classList.add('focus');
+                    if (targetCell == undefined) {
+                        // click event on parent of cellContent
+                        targetCell= event.target.querySelector('div.cellContent');
+                    }
+                    if (targetCell == null) {
+                        console.log('did not find cell content for click event', event.target);
+                    } else {
+                        targetCell.classList.add('focus');
+                    }
+
                 });
+
+                this.addEventListener('keydown', (event) => {
+                    switch (event.key) {
+                        case "ArrowUp":
+                            this.moveFocus(-1, 0);
+                            break;
+                        case "ArrowDown":
+                            this.moveFocus(1, 0);
+                            break;
+                        case "ArrowLeft": 
+                            this.moveFocus(0, -1);
+                            break;
+                        case "ArrowRight":
+                            this.moveFocus(0, 1);
+                            break;
+                        default:
+                            this.updateModel(event.key);
+                    }
+                })
             }
-            
+
+            moveFocus(deltaRow, deltaCol) {
+                const currentFocusCell = this.#host.querySelector('div.cellContent.focus');
+                if (currentFocusCell == null) {
+                } else {
+                    currentFocusCell.classList.remove('focus');
+                    const row= parseInt(currentFocusCell.dataset.row) + deltaRow
+                    const col= parseInt(currentFocusCell.dataset.col) + deltaCol
+
+                    const newFocusCell= this.#host.querySelector(`div[data-row="${row}"][data-col="${col}"]`)
+                    if (newFocusCell == null) {
+                        console.log("could not find new focus cell")
+                    } else {
+                        newFocusCell.classList.add('focus');
+                    }
+                }
+            }
+
+            updateModel(key) {
+                if ("update" in this.#adapter) {
+                    const currentFocusCell = this.#host.querySelector('div.cellContent.focus');
+                    const row= parseInt(currentFocusCell.dataset.row);
+                    const col= parseInt(currentFocusCell.dataset.col);
+                    this.#adapter.update(row, col, key);
+                }
+            }
+
 
             set adapter(adapter) {
-                // console.log("attaching model", model);
-                this.#adapter= adapter;
+                this.#adapter = adapter;
                 adapter.addListener(this);
-                // console.log("model set", this);
                 this.repaint();
             }
-            
+
             onChange() {
                 repaint();
             }
-            
+
             repaint() {
-                // console.log("container", Array.from(this.container.children).filter((element) => element.matches("div.cell")));
-                Array.from(this.#container.children).filter((element) => element.matches("div.cell")).forEach((cell) => {
-                    this.#adapter.renderCell(cell.dataset.row, cell.dataset.col, cell.firstChild);
+                this.#host.querySelectorAll("div.cellContent").forEach((cell) => {
+                    this.#adapter.renderCell(cell.dataset.row, cell.dataset.col, cell);
                 });
             }
         }

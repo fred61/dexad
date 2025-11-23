@@ -37,21 +37,20 @@
                     let v= this.#model.get(row, col);
                     cell.innerText= v;
                 }
+
+                update(row, col, key) {
+                    console.log(`model update at ${row}/${col} with ${key}`);
+                }
             }
             
             window.onload= () => {
-                console.log("document load");
-                
                 let o= document.getElementById("theGrid");
-                console.log("theGrid", o);
                 
                 if (o instanceof customElements.get('cell-grid')) {
                     o.adapter= new GridAdapter(new Model());
-                } else {
-                    console.log("dammit daniel");
                 }
+
             }
-            console.log("Yo", document);
         }
         )();
     </script>
@@ -69,7 +68,7 @@
         cell-grid.grid2 {
             background-color: aqua;
             width: 120px;
-            height: 120px;
+            height: 40px;
         }
 	</style>
     <title>Grid Component Test</title>
@@ -78,20 +77,11 @@
     <h1>Grid Component Test</h1>
     <div class="cell"> random text </div>
     <div>
-		<cell-grid class="grid1" major=3 minor=3 cellSize=30 id="theGrid" />
+		<cell-grid class="grid1" major=3 minor=3 cellSize=30 id="theGrid" tabindex="1"/>
     </div>
     <div>
-		<cell-grid class="grid2" major=1 minor=3 id="theOtherGrid" />
+		<cell-grid class="grid2" majorRows=1 majorCols="1" minorCols="7" id="theOtherGrid"/>
     </div>
 
   </body>
 </html>
-
-<!--
-    goal: make it so I can type numbers into cells.
-    this means that there is one cell which has "the focus", which needs visualising
-    
-    this also means that there has to be 1 grid which has the focus. which one it is must be set externally.
-    it is only if a grid has the focus that the focus cell is relevant, so if grid does not have focus then no decoration
-    
--->
