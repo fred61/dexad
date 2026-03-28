@@ -1,0 +1,74 @@
+grid.html
+
+This is a sudoku solver. The intention is to adapt it to use the grid component under development in this project.
+
+It needs a savepoint feature so I can copy out a given sudoku, set a savepoint and be sure I can't undo past it.
+
+URI for Guardian Sudoku: https://www.theguardian.com/lifeandstyle/series/sudoku
+
+250518
+
+Goal: improve layout. I want the div containing the keyboard navigation to place on the right of the grid
+	as long as there is room. and I want it under the grid if not.
+	The "permanent link" div should always be at the bottom.
+	
+	Sounds easy enough, but unless I want to just whack at it until it vaguely does what I want it to, it's 
+	not as simple. Layout is pretty complex.
+	
+250602
+	Not only is layout a complex topic all by itself, the various defaults that exist don't help.
+	E.g. for what I wanted to achieve, I had to style the div containing the keys with flex-shrink: 0, 
+	the default is 1.
+	
+	It still doesn't look great, I need margins / padding.
+	Generally, from outside in, a box has margin, border, padding, content.
+	
+250607
+	How this works (1):
+		there is an object of class Model inside IIFE (immediately executed function expression)
+			apparently many of the use cases of IIFEs are obsoleted by modules and block scoped declarations 
+			according to https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/function#using_an_immediately_invoked_function_expression_iife
+		
+		inside that function, an event listener for the DOMContentLoaded event is set which 
+			creates the cells in the gridContainer
+				uses the makeGridCell function which adds divs and sets classes as required
+			sets cell values from the search element of the URL (that's the part after the ?)
+			installs event listeners for keydown on the document and click on the gridContainer
+
+250608
+	Savepoints need names. Use window.prompt(message, default) function.
+	There is an undoRedo object which currently is a Move[]. 
+		A savepoint has a name and an index in undoRedo which it refers to.
+		Applying a savepoint means undoing all moves after the savepoint / redoing all moves before the savepoint.
+		
+		I.e. there is something which knows about savepoints and which knows undoRedo. That could be a function.
+			I have a setValue() function which does something similar for the grid
+			creating an addSavepoint function for this is natural
+		
+		Redrawing the savepoint list is different from redrawing grid: #of elements may have changed, should delete all children.
+			can't remember how to, leave for later.
+
+250614
+	Had a brief look at Eclipse for working with this - thanks but no thanks, looks like too much shell around what I actually want.
+
+	I can add savepoints and they get displayed when the page is redrawn. The styling leaves much to be desired and obvs the savepoints don't do anything.
+		I want the SP list to have a reasonable fixed width, and if a name is too long for that width, it should wrap, in the middle of the word if necessary.
+		
+	should brush up on units. What's an em again?
+
+250615
+	Idea for deleting savepoints: have 2 divs, one with name, one with something that deletes the SP when clicked.
+	
+	Struggling with the layout of those again. They are contained in a div, which has display: inline-block and width 100% 
+		of its container, but they are displayed vertically. The demo for display on MDN looks different.
+		Can't read the source for the page, the example they have uses an "article" element that I do not know.
+		
+		I will have to do a spike for myself.
+		
+		<article> in the example is in essence a <div>. The elements contained in the <article> are <span>s, that's what 
+		confused me. The contained elements in the demo are probably also <span>s.
+		
+		Lessons: 
+			- if you want <div>s to be layed out vertically, you have to use display: flex (or grid, probably).
+			- if a sample includes JS code which accesses the DOM (like the MDN display example does), you must wrap this code 
+				in a "DOMContentLoaded" event handler, otherwise the JS code will fail.

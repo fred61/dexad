@@ -1,0 +1,9 @@
+251026
+    To create a cell class which centers its text content both vertically and horizontally
+        use text-align: center; align-content: center
+    
+    To create a cellContainer class which centers its block content vertically and horizontally
+        you cannot use block layout, because "justify-content applies to multicol containers, flex containers, 
+            and grid containers. The property does not apply to and has no effect on block containers" (quoting from https://developer.mozilla.org/en-US/docs/Web/CSS/justify-content)
+        you also have to set the flex-wrap to wrap, because again "This property has no effect on single line flex containers (i.e., ones with flex-wrap: nowrap)"
+                

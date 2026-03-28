@@ -1,0 +1,61 @@
+251206
+	model for upper grid works, styling works more or less.
+	don't think I can get the shell effect there is in the app entirely with CSS. probably will need to create more structure.
+    
+251208
+    balls are rendered OK
+    model generates far too many shelled balls
+
+251230
+    Introduce animation.
+    start with drop.
+    manage by assigning a class and creating animation for class
+    control logic, does not involve model. update model when animation done.
+        that applies to drop, but not to result of coalescing model.
+        concentrate on this.
+    
+ 260104
+    drop animation works.
+    next step is to consolidate model, eliminate balls.
+    I want to change the ball class so it has state instead of shellLevel. state would be singleShell, doubleShell, explode
+        if ball has explode state, the corresponding animation is triggered
+        state should be something like an enum. SO question on enums in JS: https://stackoverflow.com/questions/44447847/enums-in-javascript-with-es6
+            I don't actually need most of this. I don't care about whether or not an enum can be changed or about realm problems (whatever they are exactly)
+            all I want is if (ball.state === singleShell)
+
+260315
+    that change to ball class was wrong. ball can be singleShell and explode.
+    so, strictly: state has shellLevel: single, double; and explode: boolean.
+
+    consolidating:
+        on 1st consolidation, animation is triggered, but end handler is not.
+            handler needs to be inside shadowRoot. as is, I use "lastChild" on shadowRoot, not very satisfying because brittle.
+
+    model doesn't work as it is. if I have row0 at the the top of the grid, then the "ballsInRow = ballValue" rule is wrong.
+
+260323
+	bug: ballsInRow is wrong criterion for exploding, should be rowNeighbors
+        fixed
+	animations need speeding up
+        done
+	extend model:
+		- introduce balls count
+		- introduce seeding
+			done
+        - introduce scoring
+	extend view
+		- show balls count
+        - show score
+
+260324
+	balls count:
+		visualisation is also grid like but number of columns is variable
+		also no visible border between cells
+		2 counts: ballsAvailable, ballsUsed
+		could write custom code for ball visualisation in view.js
+		
+		paint(container, model)  - something like that
+
+260325
+    can change geometry of grid
+    don't know how to reflect in model

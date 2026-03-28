@@ -42,17 +42,70 @@
                     console.log(`model update at ${row}/${col} with ${key}`);
                 }
             }
+
+            class OtherModel {
+                #count; #available;
+
+                constructor(count) {
+                    this.#count= count;
+                }
+
+                get(row, col) {
+                    if (col < count) {
+                        return col < available;
+                    }
+                }
+            }
+
+            class OtherGridAdapter extends changeListeningMixin(class {}) {
+                #model;
+
+                constructor(model) {
+                    super(model);
+                    this.#model= model;
+                }
+
+                renderCell(row, col, cell) {
+                    const cellContent = document.createElement('div');
+                    cellContent.part.add('cellContent');
+                    cell.appendChild(cellContent);
+
+                    if  (this.#model.get(row, col)) {
+                        cellContent.innerText= "Y";
+                    } else {
+                        cellContent.innerText= "N";
+                    }
+                }
+
+            }
             
             window.onload= () => {
                 let o= document.getElementById("theGrid");
                 
                 if (o instanceof customElements.get('cell-grid')) {
-                    o.adapter= new GridAdapter(new Model());
+                    o.adapter= new GridAdapter(new Model(o.rows, o.columns));
                 }
 
+                o= document.getElementById("theOtherGrid");
+                
+                if (o instanceof customElements.get('cell-grid')) {
+                    o.adapter= new OtherGridAdapter(new Model(o.columns));
+                }
             }
         }
         )();
+
+        function clicked(event) {
+            console.log("clicked", event);
+            const otherGrid= document.getElementById("theOtherGrid");
+            if (event.target.value === 'more') {
+                otherGrid.majorColumns= otherGrid.majorColumns + 1;
+                otherGrid.repaint();
+            } else if (event.target.value === 'fewer') {
+                otherGrid.majorColumns= otherGrid.majorColumns - 1;
+                otherGrid.repaint();
+            }
+        }
     </script>
 	<style>
 		div {
@@ -67,8 +120,17 @@
         }
         cell-grid.grid2 {
             background-color: aqua;
-            width: 120px;
-            height: 40px;
+            width: fit-content;
+        }
+        #theOtherGrid::part(cellContent) {
+            width: 20px;
+            height: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-content: center;
+            border-radius: 50%;
+            border: 1px solid black;
         }
 	</style>
     <title>Grid Component Test</title>
@@ -80,6 +142,8 @@
 		<cell-grid class="grid1" major=3 minor=3 cellSize=30 id="theGrid" tabindex="1"/>
     </div>
     <div>
+        <button type="button" onclick="clicked(event)" value="more">more</button>
+        <button type="button" onclick="clicked(event)" value="fewer">fewer</button>
 		<cell-grid class="grid2" majorRows=1 majorCols="1" minorCols="7" id="theOtherGrid"/>
     </div>
 

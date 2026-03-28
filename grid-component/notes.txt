@@ -1,0 +1,102 @@
+grid.js
+
+This is a custom component for a cell grid. The intention is to use this in the sudoku solver I already have and to write a drop-7 game using it like what I have on the phone.
+
+250622
+
+IDK what I can accomplish with this TBH.
+	I can't encapsulate styling in the component.
+
+251102 - document what I have
+
+a custom component for a cell grid, implemented in grid.js
+use by adding a cell-grid element in html
+
+grid is defined in an IIFE (immediately executed function expression)
+IIFE defines class CellGrid and registers it as a custom element.
+
+CellGrid has private attributes (that's what the # they start with means)
+	majorCellCount, minorCellCount: self-explanatory. For sudoku, both are 3
+	container: element which contains cell-grid. 
+		styles for grid are attached to this
+		cells are created in this
+		as it is, an event handler for clicks is added to this, but that may change once I refined MVC
+
+		set by this.#container= this.attachShadow({mode: 'open'});
+			not sure what that does
+
+	adapter: 
+		interface between cell-grid and model
+		set in cell-grid consumer 
+		has listeners for changes
+		has renderCell function with self-explanatory purpose
+
+CellGrid ctor:
+	has debugging code, e.g. console log for focus / blur
+	defines cell styles, special borders for top / left / right / bottom cells
+	creates grid cells in #container:
+		cell element, which is container for cellContent
+		cell elemenent has classes according to position in grid (top, bottom etc)
+		cell element has row/col in data set
+		attempts to set focus, but I don't think that works
+
+There is no point trying to define classes outside the IIFE - JS is weakly typed, it is not possible to enforce e.g. the adapter that is set for the 
+CellGrid to have a certain type.
+This also means using private attributes in CellGrid is a bit pointless.
+
+Cells themselves are not sized, the grid as a whole is.
+
+Focus: grids are focusable because CellGrid sets its tabindex to 0.
+	If I make cells focusable by setting tabindex=0, then I can cycle through them using the tab
+	key. The cell I tab into gets a blue focus ring, but this doesn't work when clicking on a cell.
+	Also, there are no focus / blur events reported in the console.
+
+	The event handlers are registered on the parent grid, that's why no events.
+	The missing focus ring is standard browser behavior. At https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Global_attributes/tabindex, 
+	clicking on the div with tabindex set has a different effect to clicking on the 1st element and then pressing tab.
+
+	I don't need focus for the drop7 game, but for sudoku it's a different story obvs.
+
+	I don't need any control on grid for drop7, for that the grid is completely passive.
+	Unless I see top row as a 1x7 grid...
+	Also, clicking on grid should drop current ball into clicked column.
+
+TTD: handle focus in component. enable / disable based on tabindex attribute.
+
+Event Handling: in sudoku, I have 1 event handler for everything. I can't do that in cell-grid. Handlers I do define
+must not affect propagation, default behavior or bubbling.
+
+TTD: reread event handling doc, focus on targets
+
+251116
+	try: no tabindex inside grid. tabindex is on container element, event handlers ditto.
+
+251117
+	TTD: allow non-square grids	
+
+251122
+	Focus / model update works.
+	non-square grids done.
+
+	TTD: MVC does not tie together nicely yet. I now have GridAdapter in index.html.
+		It has aspects of view (renderCell), but also control (change listening stuff)
+		idea is .html is view, MC are separate java scripts.
+			not sure about that. C will need event handlers, easier in .html than separately.
+
+		cell rendering should be in .html. Arguably a property of grid, should split it from GridAdapter.
+
+251226
+	I want to change the logic for rendering cells: there should be a function which returns the cell element
+	result of this function is then added to cell container.
+	or do I? motivation for this is to only have 1 source for balls in drop7. I can accomplish this without
+	changing grid component.
+
+260327
+	not happy with MVC. I find myself manually repainting grids in drop7, shouldn't have to do that.
+	as it is, grid component has adapter. adapters extend changeListeningMixin, not using notifyListeners defined on it
+	also, have to include changeListeningMixin in every client of grid model, not good
+	change notification should be in model, not in grid component
+
+	on 2nd thought: if the model only updates through user input, then change notification isn't even needed.
+	control can be in charge of updating model and view, that's what happens in drop7.
+	complication in grid component is that it is more than just V because of attempt to handle keyboard input.

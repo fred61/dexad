@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <script defer src="../grid-component/grid.js"></script>
+    <script defer src="model.js"></script>
+    <script defer src="control.js"></script>
+
+    <style>
+        #container {
+            display: grid;
+            grid-template-columns: 1fr;
+            grid-template-rows: 1fr 1fr 7fr;
+            width: 350px;
+            height: 450px;
+            outline: none;
+            container-type: size;
+        }
+
+        #lowerGrid {
+            grid-row: 3;
+            height: 100%;
+        }
+
+        cell-grid::part(ball) {
+            height: 100%;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-content: center;
+            border-radius: 50%;
+            box-sizing: border-box;
+            font-weight: bold;
+            color: white;
+            font-size: 2rem;
+        }
+
+        cell-grid::part(innerShell) {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-content: center;
+            border-radius: 50%;
+            background-color: darkgrey;
+            color: lightgray;
+            min-width: 100%;
+            min-height: 100%;
+            font-size: 1.6rem;
+        }
+
+        cell-grid::part(singleShell) {
+            border-style: dashed;
+            border-color: darkgrey;
+            padding: 3px;
+        }
+
+        cell-grid::part(doubleShell) {
+            border-style: solid;
+            border-color: darkgrey;
+            padding: 3px;
+        }
+
+        cell-grid::part(ball1) {
+            background-color: limegreen;
+        }
+
+        cell-grid::part(ball2) {
+            background-color:  	#cccc00
+        }
+
+        cell-grid::part(ball3) {
+            background-color: orange;
+        }
+
+        cell-grid::part(ball4) {
+            background-color: red;
+        }
+
+        cell-grid::part(ball5) {
+            background-color: purple;
+        }
+
+        cell-grid::part(ball6) {
+            background-color: cyan
+        }
+
+        cell-grid::part(ball7) {
+            background-color: blue
+        }
+
+        cell-grid::part(drop) {
+            background-color: pink;
+            animation-duration: 5s;
+            animation-name: dropDown;
+            animation-fill-mode: forwards;
+        }
+
+        @keyframes dropDown {
+            from {
+                translate: 0 0;
+            }
+
+            to {
+                translate: 0 90cqh;
+            }
+        }
+    </style>
+
+    <script type="text/javascript">
+        function changeListeningMixin(baseClass) {
+            return class extends baseClass {
+                #listeners = [];
+
+                addListener(listener) {
+                    this.#listeners.push(listener)
+                }
+
+                notifyListeners() {
+                    this.#listeners.forEach((listener) => listener.onChange());
+                }
+            }
+        }
+
+        function createBallElement(value, state) {
+            const cellContent = document.createElement('div');
+            cellContent.classList.add('ball');              //TODO do I need this?
+            cellContent.part.add('ball');
+            if (state.shellLevel === ShellLevel.SINGLE_SHELL || state.shellLevel === ShellLevel.DOUBLE_SHELL) {
+                const innerShell = document.createElement('div');
+                innerShell.innerHTML= `${value}`
+                cellContent.appendChild(innerShell);
+                cellContent.part.add(state.shellLevel);
+                innerShell.part.add('innerShell');
+                // console.log('cellContent', cellContent);
+                // console.log('innerShell', innerShell);
+            } else {
+                cellContent.innerHTML = `${value}`;
+                cellContent.part.add(`ball${value}`);
+            }
+            if (state.explode) {
+                cellContent.classList.add('explode');
+            }
+            return cellContent;
+        }
+
+        function createUpperStyles() {
+            const sheet= new CSSStyleSheet();
+            sheet.replaceSync(`
+                .drop {
+                    animation-duration: 750ms;
+                    animation-timing-function: linear;
+                    animation-name: dropDown;
+                    animation-fill-mode: forwards;
+                }
+                .targetRow7 {
+                    --targetRow: 7
+                }
+                .targetRow6 {
+                    --targetRow: 6
+                }
+                .targetRow5 {
+                    --targetRow: 5
+                }
+                .targetRow4 {
+                    --targetRow: 4
+                }
+                .targetRow3 {
+                    --targetRow: 3
+                }
+                .targetRow2 {
+                    --targetRow: 2
+                }
+                .targetRow1 {
+                    --targetRow: 1
+                }
+                @keyframes dropDown {
+                    from {
+                        translate: 0 0;
+                    }
+                    to {
+                        translate: 0 calc(( var(--targetRow) + 1 ) / 9 * 100cqh);
+                    }
+                }
+            `);
+            return sheet;
+        }
+
+        function createLowerStyles() {
+            const sheet= new CSSStyleSheet();
+            sheet.replaceSync(`
+                .explode {
+                    background-color: pink;
+                    animation-duration: 750ms;
+                    animation-timing-function: linear;
+                    animation-name: explode;
+                    animation-fill-mode: forwards;
+                }
+                @keyframes explode {
+                    from {
+                        scale: 1;
+                    }
+                    to {
+                        scale: 0;
+                    }
+                }
+            `);
+            return sheet;            
+        }
+
+        class UpperGridAdapter extends changeListeningMixin(class { }) {
+            #model;
+            //must implement:
+            //  renderCell(row, col, cell)
+            //  update(row, col, key)  - possibly only if grid is focussable
+
+            constructor(model) {
+                super();
+                this.#model = model;
+            }
+
+            renderCell(row, col, cell) {
+                const myBall = this.#model.getCell(col);
+                cell.innerHTML = '';
+                if (myBall != undefined) {
+                    cell.appendChild(createBallElement(myBall.value, myBall.state));
+                }
+            }
+        }
+
+        class LowerGridAdapter extends changeListeningMixin(class { }) {
+            #model;
+
+            constructor(model) {
+                super();
+                this.#model = model;
+            }
+
+            renderCell(row, col, cell) {
+                const myBall = this.#model.getCell(row, col);
+                cell.innerHTML = '';
+                if (myBall != null) {
+                    cell.appendChild(createBallElement(myBall.value, myBall.state));
+                }
+            }
+        }
+
+        window.onload = () => {
+            const containerDiv = document.getElementById("container");
+            const upperGrid = document.getElementById("upperGrid");
+            const lowerGrid = document.getElementById("lowerGrid");
+
+            if (!(upperGrid instanceof customElements.get('cell-grid')) ||
+                !(lowerGrid instanceof customElements.get('cell-grid')) ||
+                !(containerDiv instanceof HTMLDivElement) ||
+                upperGrid.parentElement != containerDiv ||
+                lowerGrid.parentElement != containerDiv
+            ) {
+                document.body.innerHTML = "<H1>I cannot be expected to work under these circumstances</H1>"
+            } else {
+                const model = new Model(lowerGrid.rows, lowerGrid.columns);
+                upperGrid.adapter = new UpperGridAdapter(model.upper);
+                lowerGrid.adapter = new LowerGridAdapter(model.lower);
+
+                upperGrid.shadowRoot.adoptedStyleSheets= [createUpperStyles()];
+                lowerGrid.shadowRoot.adoptedStyleSheets= [createLowerStyles()];
+
+                model.upper.newBall();
+                model.seed();
+
+                upperGrid.repaint();
+                lowerGrid.repaint();
+
+                console.log('upper shadow root', upperGrid.shadowRoot);
+                upperGrid.shadowRoot.querySelectorAll(".ball").forEach((cell) => {
+                    console.log('ball', cell);
+                });
+
+                lowerGrid.shadowRoot.lastChild.addEventListener('animationend', (event) => {
+                    console.log('gridAnimationEnd', event);
+                    model.lower.consolidate();
+                    lowerGrid.repaint();
+                });
+
+
+
+                containerDiv.addEventListener('keyup', (event) => {
+                    console.log('keyup', event);
+                    switch (event.key) {
+                        case 'ArrowRight':
+                            model.upper.ballRight();
+                            upperGrid.repaint();
+                            break;
+                        case 'ArrowLeft':
+                            model.upper.ballLeft();
+                            upperGrid.repaint();
+                            break;
+                        case ' ':
+                            const ballElement = upperGrid.shadowRoot.querySelector(".ball");
+                            const animationEndHandler = (event) => {
+                                console.log("animation end", event);
+                                model.dropBall();
+                                model.lower.consolidate();
+
+                                model.upper.newBall();
+
+                                upperGrid.repaint();
+                                lowerGrid.repaint();
+                                // do not need to remove event listener / drop style after repaint
+                            }
+                            ballElement.addEventListener('animationend', animationEndHandler);
+                            const lastRow= model.lower.lastEmptyRow(model.upper.getBall().column);
+                            console.log("last row", lastRow);
+                            ballElement.classList.add("drop", `targetRow${lastRow}`);
+                            break;
+
+                        case '1':
+                        case '2':
+                        case '3':
+                        case '4':
+                        case '5':
+                        case '6':
+                        case '7':
+                            model.upper.newBall(event.key);
+                            upperGrid.repaint();
+                            break;
+
+                        case '8':
+                            model.upper.newBall(undefined, 1);
+                            upperGrid.repaint();
+                            break;
+
+                        case '9':
+                            model.upper.newBall(undefined, 2);
+                            upperGrid.repaint();
+                            break;
+                    }
+                    console.log(`${upperGrid.shadowRoot.getAnimations().length} animations running`);
+                })
+
+                containerDiv.focus();
+            }
+
+
+        }
+
+    </script>
+
+</head>
+
+<body>
+    <div tabindex="0" id="container">
+        <cell-grid majorRows="1" majorCols="1" minorCols="7" id="upperGrid"> </cell-grid>
+        <cell-grid majorRows="1" minorRows="7" majorCols="1" minorCols="7" id="lowerGrid"></cell-grid>
+    </div>
+</body>
+
+</html>
